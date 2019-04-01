@@ -54,7 +54,7 @@ IRReplica::IRReplica(transport::Configuration config, int myIdx,
     }
 
     // TODO: Figure out a good view change timeout.
-    const uint64_t view_change_timeout_ms = 10 * 1000;
+    const uint64_t view_change_timeout_ms = 1000 * 1000;
     view_change_timeout = std::unique_ptr<Timeout>(
         new Timeout(transport, view_change_timeout_ms,
                     [this]() { this->HandleViewChangeTimeout(); }));
