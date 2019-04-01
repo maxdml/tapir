@@ -260,7 +260,8 @@ main(int argc, char **argv)
                 "only %d replicas defined\n", index, config.n);
     }
 
-    UDPTransport transport(0.0, 0.0, 0);
+    //UDPTransport transport(0.0, 0.0, 0);
+    TCPTransport transport(0.0, 0.0, 0, true);
 
     tapirstore::Server server(linearizable);
 

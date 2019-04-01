@@ -28,7 +28,7 @@
  * SOFTWARE.
  *
  **********************************************************************/
- 
+
 #ifndef _TAPIR_CLIENT_H_
 #define _TAPIR_CLIENT_H_
 
@@ -36,6 +36,7 @@
 #include "lib/message.h"
 #include "lib/configuration.h"
 #include "lib/udptransport.h"
+#include "lib/tcptransport.h"
 #include "replication/ir/client.h"
 #include "store/common/timestamp.h"
 #include "store/common/truetime.h"
@@ -82,8 +83,9 @@ private:
     std::set<int> participants;
 
     // Transport used by IR client proxies.
-    UDPTransport transport;
-    
+    //UDPTransport transport;
+    TCPTransport transport;
+
     // Thread running the transport event loop.
     std::thread *clientTransport;
 
