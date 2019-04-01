@@ -384,14 +384,17 @@ TCPTransport::SendMessageInternal(TransportReceiver *src,
         Warning("Failed to write to TCP buffer");
         return false;
     }
-    
+
     return true;
 }
 
 void
 TCPTransport::Run()
 {
+    while(1){
     event_base_dispatch(libeventBase);
+    }
+    Debug("Exited event loop");
 }
 
 void
