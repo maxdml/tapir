@@ -63,7 +63,7 @@ public:
 
     // Begin a transaction.
     virtual void Begin(uint64_t id) = 0;
-    
+
     // Get the value corresponding to key (valid at given timestamp).
     virtual void Get(uint64_t id,
                      const std::string &key,
@@ -88,13 +88,13 @@ public:
 
     // Commit all Get(s) and Put(s) since Begin().
     virtual void Commit(uint64_t id,
-                        const Transaction &txn = Transaction(), 
+                        const Transaction &txn = Transaction(),
                         uint64_t timestamp = 0,
                         Promise *promise = NULL) = 0;
-    
+
     // Abort all Get(s) and Put(s) since Begin().
-    virtual void Abort(uint64_t id, 
-                       const Transaction &txn = Transaction(), 
+    virtual void Abort(uint64_t id,
+                       const Transaction &txn = Transaction(),
                        Promise *promise = NULL) = 0;
 };
 

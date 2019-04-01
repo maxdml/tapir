@@ -27,7 +27,7 @@
  * SOFTWARE.
  *
  **********************************************************************/
- 
+
 #ifndef _STRONG_CLIENT_H_
 #define _STRONG_CLIENT_H_
 
@@ -97,7 +97,7 @@ private:
     Mode mode;
 
     // Timestamp server shard.
-    replication::vr::VRClient *tss; 
+    replication::vr::VRClient *tss;
 
     // TrueTime server.
     TrueTime timeServer;

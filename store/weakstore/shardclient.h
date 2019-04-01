@@ -32,7 +32,7 @@ public:
 
     void Get(uint64_t id, const std::string &key, Promise *promise);
     void Put(uint64_t id, const std::string &key, const std::string &value, Promise *promise);
-    
+
     // Overriding from TransportReceiver
     void ReceiveMessage(const TransportAddress &remote, const std::string &type, const std::string &data);
 

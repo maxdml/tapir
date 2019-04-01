@@ -53,7 +53,7 @@ public:
     TCPTransportAddress * clone() const;
 private:
     TCPTransportAddress(const sockaddr_in &addr);
-    
+
     sockaddr_in addr;
     friend class TCPTransport;
     friend bool operator==(const TCPTransportAddress &a,
@@ -78,7 +78,7 @@ public:
     int Timer(uint64_t ms, timer_callback_t cb);
     bool CancelTimer(int id);
     void CancelAllTimers();
-    
+
 private:
     std::mutex mtx;
     struct TCPTransportTimerInfo
@@ -107,7 +107,7 @@ private:
     std::list<TCPTransportTCPListener *> tcpListeners;
     std::map<TCPTransportAddress, struct bufferevent *> tcpOutgoing;
     std::map<struct bufferevent *, TCPTransportAddress> tcpAddresses;
-    
+
     bool SendMessageInternal(TransportReceiver *src,
                              const TCPTransportAddress &dst,
                              const Message &m, bool multicast = false);

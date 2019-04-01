@@ -36,13 +36,13 @@ main(int argc, char **argv)
     while ((opt = getopt(argc, argv, "c:N:m:r:")) != -1) {
         switch (opt) {
         case 'c': // Configuration path
-        { 
+        {
             configPath = optarg;
             break;
         }
 
         case 'N': // Number of shards.
-        { 
+        {
             char *strtolPtr;
             nShards = strtoul(optarg, &strtolPtr, 10);
             if ((*optarg == '\0') || (*strtolPtr != '\0') ||

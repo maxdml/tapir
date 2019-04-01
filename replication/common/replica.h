@@ -41,7 +41,7 @@
 #include "replication/common/viewstamp.h"
 
 namespace replication {
-    
+
 class Replica;
 
 enum ReplicaStatus {
@@ -68,7 +68,7 @@ class Replica : public TransportReceiver
 public:
     Replica(const transport::Configuration &config, int myIdx, Transport *transport, AppReplica *app);
     virtual ~Replica();
-    
+
 protected:
     void LeaderUpcall(opnum_t opnum, const string &op, bool &replicate, string &res);
     void ReplicaUpcall(opnum_t opnum, const string &op, string &res);
@@ -78,7 +78,7 @@ protected:
     void UnloggedUpcall(const string &op, string &res);
     template<class MSG> void ExecuteUnlogged(const UnloggedRequest & msg,
                                                MSG &reply);
-    
+
 protected:
     transport::Configuration configuration;
     int myIdx;
@@ -86,7 +86,7 @@ protected:
     AppReplica *app;
     ReplicaStatus status;
 };
-    
+
 #include "replica-inl.h"
 
 } // namespace replication

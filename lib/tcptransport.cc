@@ -62,7 +62,7 @@ TCPTransportAddress *
 TCPTransportAddress::clone() const
 {
     TCPTransportAddress *c = new TCPTransportAddress(*this);
-    return c;    
+    return c;
 }
 
 bool operator==(const TCPTransportAddress &a, const TCPTransportAddress &b)
@@ -136,10 +136,10 @@ BindToPort(int fd, const string &host, const string &port)
     ASSERT(ai->ai_family == AF_INET);
     ASSERT(ai->ai_socktype == SOCK_STREAM);
     if (ai->ai_addr->sa_family != AF_INET) {
-        Panic("getaddrinfo returned a non IPv4 address");        
+        Panic("getaddrinfo returned a non IPv4 address");
     }
     sin = *(sockaddr_in *)ai->ai_addr;
-        
+
     freeaddrinfo(ai);
 
     Debug("Binding to %s %d TCP", inet_ntoa(sin.sin_addr), htons(sin.sin_port));
@@ -153,7 +153,7 @@ TCPTransport::TCPTransport(double dropRate, double reorderRate,
 			   int dscp, bool handleSignals)
 {
     lastTimerId = 0;
-    
+
     // Set up libevent
     evthread_use_pthreads();
     event_set_log_callback(LogCallback);
@@ -191,7 +191,7 @@ TCPTransport::ConnectTCP(TransportReceiver *src, const TCPTransportAddress &dst)
     if ((fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         PPanic("Failed to create socket for outgoing TCP connection");
     }
-    
+
     // Put it in non-blocking mode
     if (fcntl(fd, F_SETFL, O_NONBLOCK, 1)) {
         PWarning("Failed to set O_NONBLOCK on outgoing TCP socket");
@@ -210,7 +210,7 @@ TCPTransport::ConnectTCP(TransportReceiver *src, const TCPTransportAddress &dst)
     info->receiver = src;
     info->replicaIdx = -1;
     info->acceptEvent = NULL;
-    
+
     tcpListeners.push_back(info);
 
     struct bufferevent *bev =
@@ -218,7 +218,7 @@ TCPTransport::ConnectTCP(TransportReceiver *src, const TCPTransportAddress &dst)
                                BEV_OPT_CLOSE_ON_FREE);
     bufferevent_setcb(bev, TCPReadableCallback, NULL,
                       TCPOutgoingEventCallback, info);
-    
+
     if (bufferevent_socket_connect(bev,
                                    (struct sockaddr *)&(dst.addr),
                                    sizeof(dst.addr)) < 0) {
@@ -261,7 +261,7 @@ TCPTransport::Register(TransportReceiver *receiver,
     if (replicaIdx == -1) {
 	return;
     }
-    
+
     // Create socket
     int fd;
     if ((fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
@@ -292,12 +292,12 @@ TCPTransport::Register(TransportReceiver *receiver,
     const string &host = config.replica(replicaIdx).host;
     const string &port = config.replica(replicaIdx).port;
     BindToPort(fd, host, port);
-    
+
     // Listen for connections
     if (listen(fd, 5) < 0) {
         PPanic("Failed to listen for TCP connections");
     }
-        
+
     // Create event to accept connections
     TCPTransportTCPListener *info = new TCPTransportTCPListener();
     info->transport = this;
@@ -337,7 +337,7 @@ TCPTransport::SendMessageInternal(TransportReceiver *src,
         ConnectTCP(src, dst);
         kv = tcpOutgoing.find(dst);
     }
-    
+
     struct bufferevent *ev = kv->second;
     ASSERT(ev != NULL);
 
@@ -353,14 +353,14 @@ TCPTransport::SendMessageInternal(TransportReceiver *src,
 
     Debug("Sending %ld byte %s message to server over TCP",
           totalLen, type.c_str());
-    
+
     char buf[totalLen];
     char *ptr = buf;
 
     *((uint32_t *) ptr) = MAGIC;
     ptr += sizeof(uint32_t);
     ASSERT((size_t)(ptr-buf) < totalLen);
-    
+
     *((size_t *) ptr) = totalLen;
     ptr += sizeof(size_t);
     ASSERT((size_t)(ptr-buf) < totalLen);
@@ -404,15 +404,15 @@ int
 TCPTransport::Timer(uint64_t ms, timer_callback_t cb)
 {
     std::lock_guard<std::mutex> lck(mtx);
-    
+
     TCPTransportTimerInfo *info = new TCPTransportTimerInfo();
 
     struct timeval tv;
     tv.tv_sec = ms/1000;
     tv.tv_usec = (ms % 1000) * 1000;
-    
+
     ++lastTimerId;
-    
+
     info->transport = this;
     info->id = lastTimerId;
     info->cb = cb;
@@ -420,9 +420,9 @@ TCPTransport::Timer(uint64_t ms, timer_callback_t cb)
                          TimerCallback, info);
 
     timers[info->id] = info;
-    
+
     event_add(info->ev, &tv);
-    
+
     return info->id;
 }
 

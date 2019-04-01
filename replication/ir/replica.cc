@@ -333,7 +333,7 @@ IRReplica::HandleDoViewChange(const TransportAddress &remote,
         // There is no quorum yet.
         return;
     }
-    Debug("Received a quourum of DoViewChangeMessages. Initiating "
+    Debug("Received a quorum of DoViewChangeMessages. Initiating "
           "IR-MERGE-RECORDS.");
 
     // Update our record, status, and view.

@@ -32,15 +32,15 @@
 
 using namespace std;
 
-Promise::Promise() 
-{ 
+Promise::Promise()
+{
     done = false;
     reply = 0;
     timeout = 1000;
 }
 
-Promise::Promise(int timeoutMS) 
-{ 
+Promise::Promise(int timeoutMS)
+{
     done = false;
     reply = 0;
     timeout = timeoutMS;
@@ -116,7 +116,7 @@ Promise::GetTimestamp()
     }
     return timestamp;
 }
-    
+
 string
 Promise::GetValue()
 {

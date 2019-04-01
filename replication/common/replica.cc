@@ -39,7 +39,7 @@
 #include <stdlib.h>
 
 namespace replication {
-    
+
 Replica::Replica(const transport::Configuration &configuration, int myIdx,
                  Transport *transport, AppReplica *app)
     : configuration(configuration), myIdx(myIdx),
@@ -50,7 +50,7 @@ Replica::Replica(const transport::Configuration &configuration, int myIdx,
 
 Replica::~Replica()
 {
-    
+
 }
 
 void
@@ -66,7 +66,7 @@ Replica::ReplicaUpcall(opnum_t opnum, const string &op, string &res)
 {
     Debug("Making upcall for operation %s", op.c_str());
     app->ReplicaUpcall(opnum, op, res);
-    
+
     Debug("Upcall result: %s", res.c_str());
 }
 

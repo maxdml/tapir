@@ -39,7 +39,7 @@ using namespace proto;
 ShardClient::ShardClient(string configPath, Transport *transport,
                    uint64_t client_id, int shard, int closestReplica) :
     transport(transport), client_id(client_id), shard(shard)
-{ 
+{
     ifstream configStream(configPath);
     if (configStream.fail()) {
         fprintf(stderr, "unable to read configuration file: %s\n",
@@ -47,22 +47,22 @@ ShardClient::ShardClient(string configPath, Transport *transport,
     }
     config = new transport::Configuration(configStream);
     transport->Register(this, *config, -1);
-    
+
     timeout = new Timeout(transport, 250, [this]() {
             RequestTimedOut();
         });
-    
+
     if (closestReplica == -1) {
         replica = client_id % config->n;
     } else {
         replica = closestReplica;
     }
-    
+
     waiting = NULL;
 }
 
-ShardClient::~ShardClient() 
-{ 
+ShardClient::~ShardClient()
+{
     delete config;
     delete timeout;
 }
@@ -137,7 +137,7 @@ void
 ShardClient::RequestTimedOut()
 {
     Debug("[shard %d] Timeout", shard);
-    
+
     timeout->Stop();
 
     if (waiting != NULL) {
@@ -154,7 +154,7 @@ ShardClient::ReceiveMessage(const TransportAddress &remote,
 {
     GetReplyMessage getReply;
     PutReplyMessage putReply;
-  
+
     Debug("Received reply type: %s", type.c_str());
 
     if (type == getReply.GetTypeName()) {

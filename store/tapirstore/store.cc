@@ -68,7 +68,7 @@ Store::Get(uint64_t id, const string &key, const Timestamp &timestamp, pair<Time
 
 int
 Store::Prepare(uint64_t id, const Transaction &txn, const Timestamp &timestamp, Timestamp &proposedTimestamp)
-{   
+{
     Debug("[%lu] START PREPARE", id);
 
     if (prepared.find(id) != prepared.end()) {
@@ -101,8 +101,8 @@ Store::Prepare(uint64_t id, const Transaction &txn, const Timestamp &timestamp, 
         // if the value is still valid
         if (!range.second.isValid()) {
             // check pending writes.
-            if ( pWrites.find(read.first) != pWrites.end() && 
-                 (linearizable || 
+            if ( pWrites.find(read.first) != pWrites.end() &&
+                 (linearizable ||
                   pWrites[read.first].upper_bound(timestamp) != pWrites[read.first].begin()) ) {
                 Debug("[%lu] ABSTAIN rw conflict w/ prepared key:%s",
                       id, read.first.c_str());

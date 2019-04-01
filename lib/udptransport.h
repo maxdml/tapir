@@ -76,7 +76,7 @@ public:
     int Timer(uint64_t ms, timer_callback_t cb);
     bool CancelTimer(int id);
     void CancelAllTimers();
-    
+
 private:
     std::mutex mtx;
     struct UDPTransportTimerInfo

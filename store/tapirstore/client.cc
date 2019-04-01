@@ -232,7 +232,7 @@ Client::Commit()
 
     if (status == REPLY_OK) {
         Debug("COMMIT [%lu]", t_id);
-        
+
         for (auto p : participants) {
             bclient[p]->Commit(0);
         }

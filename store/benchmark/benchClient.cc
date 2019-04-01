@@ -44,7 +44,7 @@ main(int argc, char **argv)
         MODE_WEAK,
         MODE_STRONG
     } mode = MODE_UNKNOWN;
-    
+
     // Mode for strongstore.
     strongstore::Mode strongmode;
 
@@ -52,19 +52,19 @@ main(int argc, char **argv)
     while ((opt = getopt(argc, argv, "c:d:N:l:w:k:f:m:e:s:z:r:")) != -1) {
         switch (opt) {
         case 'c': // Configuration path
-        { 
+        {
             configPath = optarg;
             break;
         }
 
         case 'f': // Generated keys path
-        { 
+        {
             keysPath = optarg;
             break;
         }
 
         case 'N': // Number of shards.
-        { 
+        {
             char *strtolPtr;
             nShards = strtoul(optarg, &strtolPtr, 10);
             if ((*optarg == '\0') || (*strtolPtr != '\0') ||
@@ -75,7 +75,7 @@ main(int argc, char **argv)
         }
 
         case 'd': // Duration in seconds to run.
-        { 
+        {
             char *strtolPtr;
             duration = strtoul(optarg, &strtolPtr, 10);
             if ((*optarg == '\0') || (*strtolPtr != '\0') ||
@@ -249,10 +249,10 @@ main(int argc, char **argv)
         gettimeofday(&t4, NULL);
         client->Begin();
         gettimeofday(&t1, NULL);
-        
+
         beginCount++;
         beginLatency += ((t1.tv_sec - t4.tv_sec)*1000000 + (t1.tv_usec - t4.tv_usec));
-        
+
         for (int j = 0; j < tLen; j++) {
             key = keys[rand_key()];
 
@@ -260,7 +260,7 @@ main(int argc, char **argv)
                 gettimeofday(&t3, NULL);
                 client->Put(key, key);
                 gettimeofday(&t4, NULL);
-                
+
                 putCount++;
                 putLatency += ((t4.tv_sec - t3.tv_sec)*1000000 + (t4.tv_usec - t3.tv_usec));
             } else {
@@ -292,7 +292,7 @@ main(int argc, char **argv)
         nTransactions++;
 
         gettimeofday(&t1, NULL);
-        if ( ((t1.tv_sec-t0.tv_sec)*1000000 + (t1.tv_usec-t0.tv_usec)) > duration*1000000) 
+        if ( ((t1.tv_sec-t0.tv_sec)*1000000 + (t1.tv_usec-t0.tv_usec)) > duration*1000000)
             break;
     }
 
@@ -302,7 +302,7 @@ main(int argc, char **argv)
     fprintf(stderr, "# Get: %d, %lf\n", getCount, getLatency/getCount);
     fprintf(stderr, "# Put: %d, %lf\n", putCount, putLatency/putCount);
     fprintf(stderr, "# Commit: %d, %lf\n", commitCount, commitLatency/commitCount);
-    
+
     return 0;
 }
 
@@ -348,5 +348,5 @@ int rand_key()
             }
         }
         return mid;
-    } 
+    }
 }

@@ -32,7 +32,7 @@ public:
 
     // Commit all Get(s) and Put(s) since Begin().
     virtual bool Commit() = 0;
-    
+
     // Abort all Get(s) and Put(s) since Begin().
     virtual void Abort() = 0;
 

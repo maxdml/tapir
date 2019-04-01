@@ -66,7 +66,7 @@ BufferClient::Get(const string &key, Promise *promise)
         txnclient->Get(tid, key, (txn.getReadSet().find(key))->second, promise);
         return;
     }
-    
+
     // Otherwise, get latest value from server.
     Promise p(GET_TIMEOUT);
     Promise *pp = (promise != NULL) ? promise : &p;

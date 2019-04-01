@@ -43,9 +43,9 @@
 template <typename ADDR>
 class TransportCommon : public Transport
 {
-    
+
 public:
-    TransportCommon() 
+    TransportCommon()
     {
         replicaAddressesInitialized = false;
     }
@@ -57,7 +57,7 @@ public:
             delete kv.second;
         }
     }
-    
+
     virtual bool
     SendMessage(TransportReceiver *src, const TransportAddress &dst,
                 const Message &m)
@@ -76,10 +76,10 @@ public:
         if (!replicaAddressesInitialized) {
             LookupAddresses();
         }
-        
+
         auto kv = replicaAddresses[cfg].find(replicaIdx);
         ASSERT(kv != replicaAddresses[cfg].end());
-        
+
         return SendMessageInternal(src, kv->second, m, false);
     }
 
@@ -111,7 +111,7 @@ public:
             return true;
         }
     }
-    
+
 protected:
     virtual bool SendMessageInternal(TransportReceiver *src,
                                      const ADDR &dst,
@@ -193,7 +193,7 @@ protected:
                 }
             }
         }
-        
+
         replicaAddressesInitialized = true;
     }
 };

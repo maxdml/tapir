@@ -37,6 +37,7 @@
 
 #include "lib/message.h"
 
+//FIXME Shouldn't that return false if the file exists but is empty?
 bool PersistentRegister::Initialized() const
 {
     // Check to see if the file exists. If it doesn't, then we default to
