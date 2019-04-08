@@ -203,6 +203,9 @@ TCPTransport::ConnectTCP(TransportReceiver *src, const TCPTransportAddress &dst)
                    TCP_NODELAY, (char *)&n, sizeof(n)) < 0) {
         PWarning("Failed to set TCP_NODELAY on TCP listening socket");
     }
+    if (setsockopt(fd, SOL_SOCKET, TCP_QUICKACK, &n, sizeof(n)) < 0) {
+        PWarning("Error setting TCP_QUICKACK: %s\n", strerror(errno));
+    }
 
     TCPTransportTCPListener *info = new TCPTransportTCPListener();
     info->transport = this;
