@@ -154,6 +154,15 @@ TCPTransport::TCPTransport(double dropRate, double reorderRate,
 {
     lastTimerId = 0;
 
+    randomEngine.seed(time(NULL));
+    reorderBuffer.valid = false;
+    if (dropRate > 0) {
+        Warning("Dropping packets with probability %g", dropRate);
+    }
+    if (reorderRate > 0) {
+        Warning("Reordering packets with probability %g", reorderRate);
+    }
+
     // Set up libevent
     evthread_use_pthreads();
     event_set_log_callback(LogCallback);
@@ -589,51 +598,84 @@ TCPTransport::TCPReadableCallback(struct bufferevent *bev, void *arg)
             return;
         }
         ASSERT(*magic == MAGIC);
-    
+
         size_t *sz;
         unsigned char *x = evbuffer_pullup(evbuf, sizeof(*magic) + sizeof(*sz));
-        
+
         sz = (size_t *) (x + sizeof(*magic));
         if (x == NULL) {
             return;
         }
         size_t totalSize = *sz;
         ASSERT(totalSize < 1073741826);
-        
+
         if (evbuffer_get_length(evbuf) < totalSize) {
             Debug("Don't have %ld bytes for a message yet, only %ld",
                   totalSize, evbuffer_get_length(evbuf));
             return;
         }
         Debug("Receiving %ld byte message", totalSize);
-        
+
         char buf[totalSize];
         size_t copied = evbuffer_remove(evbuf, buf, totalSize);
         ASSERT(copied == totalSize);
-        
+
         // Parse message
         char *ptr = buf + sizeof(*sz) + sizeof(*magic);
-        
+
         size_t typeLen = *((size_t *)ptr);
         ptr += sizeof(size_t);
         ASSERT((size_t)(ptr-buf) < totalSize);
-        
+
         ASSERT((size_t)(ptr+typeLen-buf) < totalSize);
         string msgType(ptr, typeLen);
         ptr += typeLen;
-        
+
         size_t msgLen = *((size_t *)ptr);
         ptr += sizeof(size_t);
         ASSERT((size_t)(ptr-buf) < totalSize);
-        
+
         ASSERT((size_t)(ptr+msgLen-buf) <= totalSize);
         string msg(ptr, msgLen);
         ptr += msgLen;
-        
+
         auto addr = transport->tcpAddresses.find(bev);
         ASSERT(addr != transport->tcpAddresses.end());
-        
+
         // Dispatch
+        if (dropRate > 0.0) {
+            double roll = uniformDist(randomEngine);
+            if (roll < dropRate) {
+                Debug("Simulating packet drop of message type %s",
+                      msgType.c_str());
+                continue;
+            }
+        }
+
+        if (!reorderBuffer.valid && (reorderRate > 0.0)) {
+            double roll = uniformDist(randomEngine);
+            if (roll < reorderRate) {
+                Debug("Simulating reorder of message type %s",
+                      msgType.c_str());
+                ASSERT(!reorderBuffer.valid);
+                reorderBuffer.valid = true;
+                reorderBuffer.addr = new TCPTransportAddress(addr->second);
+                reorderBuffer.message = msg;
+                reorderBuffer.msgType = msgType;
+                continue;
+            }
+        }
+
+        if (reorderBuffer.valid) {
+            reorderBuffer.valid = false;
+            msg = reorderBuffer.message;
+            msgType = reorderBuffer.msgType;
+            addr->second = *(reorderBuffer.addr);
+            //delete reorderBuffer.addr;
+            Debug("Delivering reordered packet of type %s",
+                  msgType.c_str());
+        }
+
         info->receiver->ReceiveMessage(addr->second, msgType, msg);
         Debug("Done processing large %s message", msgType.c_str());
     }

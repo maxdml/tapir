@@ -97,6 +97,23 @@ private:
         event *acceptEvent;
         std::list<struct bufferevent *> connectionEvents;
     };
+
+    inline static double dropRate;
+    inline static double reorderRate;
+    inline static std::uniform_real_distribution<double> uniformDist
+        = std::uniform_real_distribution<double>(0.0,1.0);
+    inline static std::default_random_engine randomEngine =
+        std::default_random_engine();
+    inline static struct
+    {
+        bool valid;
+        TCPTransportAddress *addr;
+        string msgType;
+        string message;
+        int fd;
+    } reorderBuffer;
+    int dscp;
+
     event_base *libeventBase;
     std::vector<event *> listenerEvents;
     std::vector<event *> signalEvents;
