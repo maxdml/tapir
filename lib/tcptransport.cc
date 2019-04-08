@@ -403,8 +403,8 @@ TCPTransport::SendMessageInternal(TransportReceiver *src,
 void
 TCPTransport::Run()
 {
-    while(1){
-    event_base_dispatch(libeventBase);
+    while(1) {
+        event_base_dispatch(libeventBase);
     }
     Debug("Exited event loop");
 }
