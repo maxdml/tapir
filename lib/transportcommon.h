@@ -143,7 +143,7 @@ protected:
         // Have we seen this configuration before? If so, get a
         // pointer to the canonical copy; if not, create one. This
         // allows us to use that pointer as a key in various
-        // structures. 
+        // structures.
         transport::Configuration *canonical
             = canonicalConfigs[config];
         if (canonical == NULL) {

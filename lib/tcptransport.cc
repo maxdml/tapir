@@ -443,7 +443,7 @@ TCPTransport::CancelTimer(int id)
     event_del(info->ev);
     event_free(info->ev);
     delete info;
-    
+
     return true;
 }
 
@@ -461,12 +461,12 @@ TCPTransport::OnTimer(TCPTransportTimerInfo *info)
 {
     {
 	    std::lock_guard<std::mutex> lck(mtx);
-	    
+
 	    timers.erase(info->id);
 	    event_del(info->ev);
 	    event_free(info->ev);
     }
-    
+
     info->cb();
 
     delete info;
@@ -526,7 +526,7 @@ TCPTransport::TCPAcceptCallback(evutil_socket_t fd, short what, void *arg)
 {
     TCPTransportTCPListener *info = (TCPTransportTCPListener *)arg;
     TCPTransport *transport = info->transport;
-    
+
     if (what & EV_READ) {
         int newfd;
         struct sockaddr_in sin;
@@ -567,7 +567,7 @@ TCPTransport::TCPAcceptCallback(evutil_socket_t fd, short what, void *arg)
 	transport->tcpAddresses.insert(pair<struct bufferevent*, TCPTransportAddress>(bev,client));
         Debug("Opened incoming TCP connection from %s:%d",
                inet_ntoa(sin.sin_addr), htons(sin.sin_port));
-    } 
+    }
 }
 
 void
@@ -578,7 +578,6 @@ TCPTransport::TCPReadableCallback(struct bufferevent *bev, void *arg)
     struct evbuffer *evbuf = bufferevent_get_input(bev);
 
     Debug("Readable on bufferevent %p", bev);
-    
 
     while (evbuffer_get_length(evbuf) > 0) {
         uint32_t *magic;
@@ -659,10 +658,10 @@ TCPTransport::TCPOutgoingEventCallback(struct bufferevent *bev,
 {
     TCPTransportTCPListener *info = (TCPTransportTCPListener *)arg;
     TCPTransport *transport = info->transport;
-    auto it = transport->tcpAddresses.find(bev);    
+    auto it = transport->tcpAddresses.find(bev);
     ASSERT(it != transport->tcpAddresses.end());
     TCPTransportAddress addr = it->second;
-    
+
     if (what & BEV_EVENT_CONNECTED) {
         Debug("Established outgoing TCP connection to server");
     } else if (what & BEV_EVENT_ERROR) {
