@@ -9,7 +9,7 @@ EXPAND = lib/tmpl/expand
 
 CFLAGS := -g -Wall -pthread -iquote.obj/gen -Wno-uninitialized -O2 -DNASSERT
 #CFLAGS := -g -Wall -pthread -iquote.obj/gen -Wno-uninitialized
-CXXFLAGS := -g -std=c++0x
+CXXFLAGS := -g -std=c++17
 LDFLAGS := -levent_pthreads
 ## Debian package: check
 #CHECK_CFLAGS := $(shell pkg-config --cflags check)
@@ -217,10 +217,12 @@ DEPS := $(OBJS:.o=.d) $(OBJS:.o=-pic.d)
 # Testing
 #
 GTEST_INTERNAL_SRCS := $(wildcard $(GTEST_DIR)/src/*.cc)
+#$(info gtest internal src are $(GTEST_INTERNAL_SRCS))
 GTEST_OBJS := $(patsubst %.cc,.obj/gtest/%.o,$(notdir $(GTEST_INTERNAL_SRCS)))
+#$(info gtest objs are $(GTEST_OBJS))
 
 $(GTEST_OBJS): .obj/gtest/%.o: $(GTEST_DIR)/src/%.cc
-	$(call compilecxx,CC,-I$(GTEST_DIR) -Wno-missing-field-initializers)
+	$(call compilecxx,CC, -isystem $(GTEST_DIR)/include -I$(GTEST_DIR) -Wno-missing-field-initializers)
 
 $(GTEST) : .obj/gtest/gtest-all.o
 	$(call trace,AR,$@,$(AR) $(ARFLAGS) $@ $^)
