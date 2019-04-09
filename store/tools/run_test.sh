@@ -59,7 +59,7 @@ echo "Mode: $mode"
 
 # Generate keys to be used in the experiment.
 echo "Generating random keys.."
-python key_generator.py $nkeys > keys
+python $srcdir/store/tools/key_generator.py $nkeys > keys
 
 
 # Start all replicas and timestamp servers
