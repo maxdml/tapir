@@ -1,3 +1,5 @@
+#TODO: update this script to comply with new output
+# See https://github.com/andromeda/tunicast/blob/master/data/sosp/tapir/process_logs.py
 import sys
 
 start, end = -1.0, -1.0
@@ -20,7 +22,7 @@ for line in open(sys.argv[1]):
     continue
 
   line = line.strip().split()
-  if not line[0].isdigit() or len(line) < 4:
+  if not line[0].isdigit() or len(line) < 5:
     continue
 
   if start == -1:
@@ -28,26 +30,26 @@ for line in open(sys.argv[1]):
     end = start + warmup
 
   fts = float(line[2])
-  
+
   if fts < start:
     continue
 
   if fts > end:
     break
 
-  latency = int(line[3])
-  status = int(line[4])
+  latency = int(line[4])
+  status = int(line[5])
   ttype = -1
   try:
-    ttype = int(line[5])
-    extra = int(line[6])
+    ttype = int(line[6])
+    extra = int(line[7])
   except:
     extra = 0
 
   if status == 1 and ttype == 2:
     xLatency.append(latency)
 
-  tLatency.append(latency) 
+  tLatency.append(latency)
   tExtra += extra
 
   if status == 1:

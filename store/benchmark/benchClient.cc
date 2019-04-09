@@ -17,10 +17,22 @@
 
 using namespace std;
 
-struct txn_stats {
+/**TODO: those two structs should really be in store/common/frontend/client.h */
+#define SAMPLE 1
+
+struct opStat {
     struct timeval tstart;
     struct timeval tend;
     long latency;
+};
+
+struct txnStats {
+    vector<struct opStat> getStats;
+    vector<struct opStat> putStats;
+    struct opStat begin;
+    struct opStat commit;
+    double tLatency; // latency for the entire transaction
+    bool status;
 };
 
 // Function to pick a random key according to some distribution.
@@ -236,135 +248,134 @@ main(int argc, char **argv)
     }
     in.close();
 
-    /**TODO:
-     * - get a vector of begin and commit latencies
-     * - add the put latencies
-     * - remove obsolete variables
-     */
-    cerr << "Running benchClient for " << duration << "s, tLen=" << tLen << ", wPer=" << wPer << endl;
-
-    struct timeval t0, t1;
-    struct timeval tbeginstart, tbeginend;
-    struct timeval tputstart, tputend;
-    struct timeval tcommitstart, tcommitend;
-
-    int nTransactions = 0;
-    int tCount = 0;
-    double tLatency = 0.0;
-    double getLatency = 0.0;
-    double putLatency = 0.0;
+    cerr << "# benchClient_params: " << duration << "s, tLen=" << tLen << ", wPer=" << wPer << endl;
+    vector<struct txnStats> tStats;
+    int tCount = 0; // successful txns count
+    double tLatency = 0.0; //successful latencies
     int beginCount = 0;
     double beginLatency = 0.0;
+    int getCount = 0;
+    double getLatency = 0.0;
+    int putCount = 0;
+    double putLatency = 0.0;
     int commitCount = 0;
     double commitLatency = 0.0;
-    double begin_latency = 0;
-    vector<struct txn_stats> get_stats(tLen);
-    double commit_latency = 0;
-    long latency = 0;
-    int getCount, putCount;
-    int totalGetCount = 0;
-    int totalPutCount = 0;
 
+    struct timeval t0, t1;
     gettimeofday(&t0, NULL);
     srand(t0.tv_sec + t0.tv_usec);
 
     while (1) {
-        getCount = 0;
-        putCount = 0;
-        gettimeofday(&tbeginstart, NULL);
-        client->Begin();
-        gettimeofday(&tbeginend, NULL);
+        struct txnStats tStat;
+        tStat.getStats.reserve(tLen);
+        tStat.putStats.reserve(tLen);
 
+        gettimeofday(&tStat.begin.tstart, NULL);
+        client->Begin();
+        gettimeofday(&tStat.begin.tend, NULL);
+
+        tStat.begin.latency = (tStat.begin.tend.tv_sec - tStat.begin.tstart.tv_sec) * 1000000
+                              + (tStat.begin.tend.tv_usec - tStat.begin.tstart.tv_usec);
+        beginLatency = tStat.begin.latency;
         beginCount++;
-        begin_latency = ((tbeginend.tv_sec - tbeginstart.tv_sec)*1000000 + (tbeginend.tv_usec - tbeginstart.tv_usec));
-        beginLatency += begin_latency;
 
         for (int j = 0; j < tLen; j++) {
             key = keys[rand_key()];
 
             if (rand() % 100 < wPer) {
-                gettimeofday(&tputstart, NULL);
+                struct opStat putStat;
+                gettimeofday(&putStat.tstart, NULL);
                 client->Put(key, key);
-                gettimeofday(&tputend, NULL);
+                gettimeofday(&putStat.tend, NULL);
 
-                putLatency += ((tputend.tv_sec - tputstart.tv_sec)*1000000 + (tputend.tv_usec - tputstart.tv_usec));
+                putStat.latency = (putStat.tend.tv_sec - putStat.tstart.tv_sec) * 1000000
+                                  + (putStat.tend.tv_usec - putStat.tstart.tv_usec);
+                tStat.putStats.push_back(putStat);
+                putLatency += putStat.latency;
                 putCount++;
             } else {
-                struct txn_stats get_stat;
-                gettimeofday(&get_stat.tstart, NULL);
+                struct opStat getStat;
+                gettimeofday(&getStat.tstart, NULL);
                 client->Get(key, value);
-                gettimeofday(&get_stat.tend, NULL);
+                gettimeofday(&getStat.tend, NULL);
 
-                get_stat.latency =
-                    (get_stat.tend.tv_sec - get_stat.tstart.tv_sec) * 1000000
-                    + (get_stat.tend.tv_usec - get_stat.tstart.tv_usec);
-
-                get_stats.push_back(get_stat);
+                getStat.latency = (getStat.tend.tv_sec - getStat.tstart.tv_sec) * 1000000
+                                  + (getStat.tend.tv_usec - getStat.tstart.tv_usec);
+                tStat.getStats.push_back(getStat);
+                getLatency += getStat.latency;
                 getCount++;
             }
         }
 
-        gettimeofday(&tcommitstart, NULL);
-        bool status = client->Commit();
-        gettimeofday(&tcommitend, NULL);
+        gettimeofday(&tStat.commit.tstart, NULL);
+        tStat.status = client->Commit();
+        gettimeofday(&tStat.commit.tend, NULL);
 
+        tStat.commit.latency = (tStat.commit.tend.tv_sec - tStat.commit.tstart.tv_sec) * 1000000
+                               + (tStat.commit.tend.tv_usec - tStat.commit.tstart.tv_usec);
+        commitLatency += tStat.commit.latency;
         commitCount++;
-        commit_latency = ((tcommitend.tv_sec - tcommitstart.tv_sec)*1000000 + (tcommitend.tv_usec - tcommitstart.tv_usec));
-        commitLatency += commit_latency;
+        tStat.tLatency = (tStat.commit.tend.tv_sec - tStat.begin.tend.tv_sec) * 1000000
+                         + (tStat.commit.tend.tv_usec - tStat.begin.tend.tv_usec);
 
-        /** Print out transaction begin latency */
-        cerr << "[" << std::this_thread::get_id() << "]";
-        cerr << nTransactions+1 << " begin ";
-        cerr << tbeginstart.tv_sec << "." << tbeginstart.tv_usec << " ";
-        cerr << tbeginend.tv_sec << "." << tbeginend.tv_usec << " ";
-        cerr << begin_latency << endl;
+        tStats.push_back(tStat);
 
-        /** Print out transaction get latency */
-        for (int i = totalGetCount; i < totalGetCount + getCount; ++i) {
-            cerr << "[" << std::this_thread::get_id() << "]";
-            cerr << nTransactions+1 << " get " << " ";
-            cerr << get_stats[i].tstart.tv_sec << "." << get_stats[i].tend.tv_usec << " ";
-            cerr << get_stats[i].tend.tv_sec << "." << get_stats[i].tend.tv_usec << " ";
-            cerr << get_stats[i].latency << endl;
-        }
-
-        /** TODO: Print out transaction put latency */
-
-        /** Print out transaction commit latency */
-        cerr << "[" << std::this_thread::get_id() << "]";
-        cerr << nTransactions+1 << " commit ";
-        cerr << tcommitstart.tv_sec << "." << tcommitstart.tv_usec << " ";
-        cerr << tcommitend.tv_sec << "." << tcommitend.tv_usec << " ";
-        cerr << commit_latency << endl;
-
-        /** Print out transaction total latency */
-        latency = (tcommitend.tv_sec - tbeginend.tv_sec)*1000000 + (tcommitend.tv_usec - tbeginend.tv_usec);
-        cerr << "[" << std::this_thread::get_id() << "]";
-        cerr << nTransactions+1 << " total " << tbeginend.tv_sec << "." << tbeginend.tv_usec;
-        cerr << " " << tcommitend.tv_sec << "." << tcommitend.tv_usec << " " << latency << " " << status;
-        cerr << endl;
-
-        if (status) {
+        if (tStat.status) {
             tCount++;
-            tLatency += latency;
+            tLatency += tStat.tLatency;
         }
-        totalGetCount += getCount;
-        totalPutCount += putCount;
-        nTransactions++;
 
         gettimeofday(&t1, NULL);
         if (((t1.tv_sec-t0.tv_sec)*1000000 + (t1.tv_usec-t0.tv_usec)) > duration*1000000) {
-            cerr << "Breaking out after " << nTransactions << " txn completed " << endl;
             break;
         }
     }
 
-    fprintf(stderr, "# Commit_Ratio: %lf\n", (double)tCount/nTransactions);
+    /** Transaction summary */
+    fprintf(stderr, "# Commit_Ratio: %lf\n", (double)tCount/tStats.size());
     fprintf(stderr, "# Average_Latency: %lf\n", tLatency/tCount);
     fprintf(stderr, "# Begin: %d, %lf\n", beginCount, beginLatency/beginCount);
-    fprintf(stderr, "# Get: %d, %lf\n", totalGetCount, getLatency/totalGetCount);
-    fprintf(stderr, "# Put: %d, %lf\n", totalPutCount, putLatency/totalPutCount);
+    fprintf(stderr, "# Get: %d, %lf\n", getCount, getLatency/getCount);
+    fprintf(stderr, "# Put: %d, %lf\n", putCount, putLatency/putCount);
     fprintf(stderr, "# Commit: %d, %lf\n", commitCount, commitLatency/commitCount);
+
+    /** Log transactions statistics */
+    for (unsigned int i = 0; i < tStats.size(); ++i) {
+        /** Begin stats */
+        cerr << i+1 << " begin ";
+        cerr << tStats[i].begin.tstart.tv_sec << "." << tStats[i].begin.tstart.tv_usec << " ";
+        cerr << tStats[i].begin.tend.tv_sec << "." << tStats[i].begin.tend.tv_usec << " ";
+        cerr << tStats[i].begin.latency << " ";
+        cerr << tStats[i].status << endl;
+        /** Put stats (if present) */
+        for (unsigned int j = 0; j < tStats[i].putStats.size(); ++j) {
+            cerr << i+1 << " put ";
+            cerr << tStats[i].putStats[j].tstart.tv_sec << "." << tStats[i].putStats[j].tstart.tv_usec << " ";
+            cerr << tStats[i].putStats[j].tend.tv_sec << "." << tStats[i].putStats[j].tend.tv_usec << " ";
+            cerr << tStats[i].putStats[j].latency << " ";
+            cerr << tStats[i].status << endl;
+        }
+        /** Get stats (if present) */
+        for (unsigned int j = 0; j < tStats[i].getStats.size(); ++j) {
+            cerr << i+1 << " get ";
+            cerr << tStats[i].getStats[j].tstart.tv_sec << "." << tStats[i].getStats[j].tstart.tv_usec << " ";
+            cerr << tStats[i].getStats[j].tend.tv_sec << "." << tStats[i].getStats[j].tend.tv_usec << " ";
+            cerr << tStats[i].getStats[j].latency << " ";
+            cerr << tStats[i].status << endl;
+        }
+        /** Commit stats */
+        cerr << i+1 << " commit ";
+        cerr << tStats[i].commit.tstart.tv_sec << "." << tStats[i].commit.tstart.tv_usec << " ";
+        cerr << tStats[i].commit.tend.tv_sec << "." << tStats[i].commit.tend.tv_usec << " ";
+        cerr << tStats[i].commit.latency << " ";
+        cerr << tStats[i].status << endl;
+        /** Overall stats */
+        cerr << i+1 << " total ";
+        cerr << tStats[i].begin.tend.tv_sec << "." << tStats[i].begin.tend.tv_usec << " ";
+        cerr << tStats[i].commit.tend.tv_sec << "." << tStats[i].commit.tend.tv_usec << " ";
+        cerr << tStats[i].tLatency << " ";
+        cerr << tStats[i].status << endl;
+    }
 
     return 0;
 }
