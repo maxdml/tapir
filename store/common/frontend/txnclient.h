@@ -38,22 +38,22 @@
 
 #include <string>
 
-#define DEFAULT_TIMEOUT_MS 250
-#define DEFAULT_MULTICAST_TIMEOUT_MS 500
+#define DEFAULT_TIMEOUT_MS 1
+#define DEFAULT_MULTICAST_TIMEOUT_MS 1
 
 // Timeouts for various operations
-#define GET_TIMEOUT 250
+#define GET_TIMEOUT 1
 #define GET_RETRIES 3
 // Only used for QWStore
-#define PUT_TIMEOUT 250
-#define PREPARE_TIMEOUT 1000
+#define PUT_TIMEOUT 1
+#define PREPARE_TIMEOUT 2
 #define PREPARE_RETRIES 5
 
-#define COMMIT_TIMEOUT 1000
+#define COMMIT_TIMEOUT 2
 #define COMMIT_RETRIES 5
 
-#define ABORT_TIMEOUT 1000
-#define RETRY_TIMEOUT 500000
+#define ABORT_TIMEOUT 10
+#define RETRY_TIMEOUT 50
 
 class TxnClient
 {
