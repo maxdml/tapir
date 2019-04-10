@@ -117,9 +117,9 @@ IRClient::InvokeConsensus(const string &request,
 {
     uint64_t reqId = ++lastReqId;
     auto timer = std::unique_ptr<Timeout>(new Timeout(
-        transport, 500, [this, reqId]() { ResendConsensus(reqId); }));
+        transport, 1, [this, reqId]() { ResendConsensus(reqId); }));
     auto transition_to_slow_path_timer =
-        std::unique_ptr<Timeout>(new Timeout(transport, 500, [this, reqId]() {
+        std::unique_ptr<Timeout>(new Timeout(transport, 1, [this, reqId]() {
             TransitionToConsensusSlowPath(reqId);
         }));
 
@@ -186,8 +186,8 @@ IRClient::InvokeUnlogged(int replicaIdx,
     reqMsg.mutable_req()->set_clientreqid(reqId);
 
     if (transport->SendMessageToReplica(this, replicaIdx, reqMsg)) {
-	req->timer->Start();
-	pendingReqs[reqId] = req;
+        req->timer->Start();
+        pendingReqs[reqId] = req;
     } else {
         Warning("Could not send unlogged request to replica");
 	delete req;

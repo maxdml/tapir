@@ -65,7 +65,7 @@ public:
     using error_continuation_t =
         std::function<void(const string &request, ErrorCode err)>;
 
-    static const uint32_t DEFAULT_UNLOGGED_OP_TIMEOUT = 1000; // milliseconds
+    static const uint32_t DEFAULT_UNLOGGED_OP_TIMEOUT = 1; // milliseconds
 
     Client(const transport::Configuration &config, Transport *transport,
            uint64_t clientid = 0);
