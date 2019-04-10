@@ -24,6 +24,8 @@ for line in open(sys.argv[1]):
   line = line.strip().split()
   if not line[0].isdigit() or len(line) < 5:
     continue
+  if line[1] != 'total':
+    continue
 
   if start == -1:
     start = float(line[2]) + warmup
