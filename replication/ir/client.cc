@@ -80,7 +80,7 @@ IRClient::InvokeInconsistent(const string &request,
     uint64_t reqId = ++lastReqId;
     // Create new timer
     auto timer = std::unique_ptr<Timeout>(new Timeout(
-        transport, 500, [this, reqId]() { ResendInconsistent(reqId); }));
+        transport, 1, [this, reqId]() { ResendInconsistent(reqId); }));
     PendingInconsistentRequest *req =
 	new PendingInconsistentRequest(request,
                                    reqId,
@@ -267,7 +267,7 @@ void IRClient::HandleSlowPathConsensus(
 
     // Set up a new timer for the finalize phase.
     req->timer = std::unique_ptr<Timeout>(
-        new Timeout(transport, 500, [this, reqid]() {  //
+        new Timeout(transport, 1, [this, reqid]() {  //
             ResendConfirmation(reqid, true);
         }));
 
@@ -315,7 +315,7 @@ void IRClient::HandleFastPathConsensus(
 
         // Set up a new timeout for the finalize phase.
         req->timer = std::unique_ptr<Timeout>(new Timeout(
-            transport, 500,
+            transport, 1,
             [this, reqid]() { ResendConfirmation(reqid, true); }));
 
         // Asynchronously send the finalize message.
@@ -455,7 +455,7 @@ IRClient::HandleInconsistentReply(const TransportAddress &remote,
         // Return to client
         if (!req->continuationInvoked) {
             req->timer = std::unique_ptr<Timeout>(new Timeout(
-                transport, 500,
+                transport, 1,
                 [this, reqId]() { ResendConfirmation(reqId, false); }));
 
             // asynchronously send the finalize message

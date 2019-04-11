@@ -43,17 +43,17 @@
 
 // Timeouts for various operations
 #define GET_TIMEOUT 1
-#define GET_RETRIES 3
+#define GET_RETRIES 1
 // Only used for QWStore
 #define PUT_TIMEOUT 1
-#define PREPARE_TIMEOUT 2
-#define PREPARE_RETRIES 5
+#define PREPARE_TIMEOUT 1
+#define PREPARE_RETRIES 1
 
-#define COMMIT_TIMEOUT 2
-#define COMMIT_RETRIES 5
+#define COMMIT_TIMEOUT 1
+#define COMMIT_RETRIES 1
 
-#define ABORT_TIMEOUT 10
-#define RETRY_TIMEOUT 50
+#define ABORT_TIMEOUT 1
+#define RETRY_TIMEOUT 1
 
 class TxnClient
 {
