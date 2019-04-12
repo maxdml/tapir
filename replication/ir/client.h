@@ -82,6 +82,9 @@ public:
         continuation_t continuation,
         error_continuation_t error_continuation = nullptr);
 
+    int slow_path_taken = 0;
+    int fast_path_taken = 0;
+
 protected:
     struct PendingRequest {
         string request;

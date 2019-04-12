@@ -83,6 +83,8 @@ public:
                const Transaction &txn,
                Promise *promise = NULL);
 
+    replication::ir::IRClient *client; // Client proxy.
+
 private:
     uint64_t client_id; // Unique ID for this client.
     Transport *transport; // Transport layer.
@@ -90,7 +92,6 @@ private:
     int shard; // which shard this client accesses
     int replica; // which replica to use for reads
 
-    replication::ir::IRClient *client; // Client proxy.
     Promise *waiting; // waiting thread
     Promise *blockingBegin; // block until finished
 

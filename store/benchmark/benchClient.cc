@@ -338,6 +338,10 @@ main(int argc, char **argv)
     fprintf(stderr, "# Get: %d, %lf\n", getCount, getLatency/getCount);
     fprintf(stderr, "# Put: %d, %lf\n", putCount, putLatency/putCount);
     fprintf(stderr, "# Commit: %d, %lf\n", commitCount, commitLatency/commitCount);
+    fprintf(stderr, "# Fast path: %d\n",
+            ((tapirstore::ShardClient *) ((tapirstore::Client *) client)->bclient[0]->txnclient)->client->fast_path_taken);
+    fprintf(stderr, "# Slow path: %d\n",
+            ((tapirstore::ShardClient *) ((tapirstore::Client *) client)->bclient[0]->txnclient)->client->slow_path_taken);
 
     /** Log transactions statistics */
     for (unsigned int i = 0; i < tStats.size(); ++i) {

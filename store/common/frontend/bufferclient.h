@@ -61,10 +61,10 @@ public:
     // Abort the running transaction.
     void Abort(Promise *promise = NULL);
 
-private:
     // Underlying single shard transaction client implementation.
     TxnClient* txnclient;
 
+private:
     // Transaction to keep track of read and write set.
     Transaction txn;
 

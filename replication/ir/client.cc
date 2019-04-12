@@ -280,6 +280,7 @@ void IRClient::HandleSlowPathConsensus(
         Debug("FinalizeConsensusMessages sent for request %lu.", reqid);
         req->sent_confirms = true;
         req->timer->Start();
+        fast_path_taken++;
     } else {
         Warning("Could not send finalize message to replicas");
         pendingReqs.erase(reqid);
@@ -327,6 +328,7 @@ void IRClient::HandleFastPathConsensus(
             Debug("FinalizeConsensusMessages sent for request %lu.", reqid);
             req->sent_confirms = true;
             req->timer->Start();
+            fast_path_taken++;
         } else {
             Warning("Could not send finalize message to replicas");
             pendingReqs.erase(reqid);
@@ -373,9 +375,9 @@ IRClient::ResendConfirmation(const uint64_t reqId, bool isConsensus)
             req->timer->Reset();
         } else {
             Warning("Could not send finalize message to replicas");
-	    // give up and clean up
-	    pendingReqs.erase(reqId);
-	    delete req;
+            // give up and clean up
+            pendingReqs.erase(reqId);
+            delete req;
         }
     } else {
 	PendingInconsistentRequest *req = static_cast<PendingInconsistentRequest *>(pendingReqs[reqId]);

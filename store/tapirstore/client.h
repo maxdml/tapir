@@ -66,6 +66,9 @@ public:
     void Abort();
     std::vector<int> Stats();
 
+    // Buffering client for each shard.
+    std::vector<BufferClient *> bclient;
+
 private:
     // Unique ID for this client.
     uint64_t client_id;
@@ -83,14 +86,11 @@ private:
     std::set<int> participants;
 
     // Transport used by IR client proxies.
-    //UDPTransport transport;
-    TCPTransport transport;
+    UDPTransport transport;
+    //TCPTransport transport;
 
     // Thread running the transport event loop.
     std::thread *clientTransport;
-
-    // Buffering client for each shard.
-    std::vector<BufferClient *> bclient;
 
     // TrueTime server.
     TrueTime timeServer;

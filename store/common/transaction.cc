@@ -13,7 +13,7 @@ using namespace std;
 Transaction::Transaction() :
     readSet(), writeSet() { }
 
-Transaction::Transaction(const TransactionMessage &msg) 
+Transaction::Transaction(const TransactionMessage &msg)
 {
     for (int i = 0; i < msg.readset_size(); i++) {
         ReadMessage readMsg = msg.readset(i);
