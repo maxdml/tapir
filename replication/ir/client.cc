@@ -280,7 +280,7 @@ void IRClient::HandleSlowPathConsensus(
         Debug("FinalizeConsensusMessages sent for request %lu.", reqid);
         req->sent_confirms = true;
         req->timer->Start();
-        fast_path_taken++;
+        slow_path_taken++;
     } else {
         Warning("Could not send finalize message to replicas");
         pendingReqs.erase(reqid);

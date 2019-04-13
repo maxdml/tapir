@@ -43,7 +43,7 @@ main(int argc, char **argv)
         MODE_WEAK,
         MODE_STRONG
     } mode = MODE_UNKNOWN;
-    
+
     // Mode for strongstore.
     strongstore::Mode strongmode;
 
@@ -51,19 +51,19 @@ main(int argc, char **argv)
     while ((opt = getopt(argc, argv, "c:d:N:k:f:m:e:s:z:r:")) != -1) {
         switch (opt) {
         case 'c': // Configuration path
-        { 
+        {
             configPath = optarg;
             break;
         }
 
         case 'f': // Generated keys path
-        { 
+        {
             keysPath = optarg;
             break;
         }
 
         case 'N': // Number of shards.
-        { 
+        {
             char *strtolPtr;
             nShards = strtoul(optarg, &strtolPtr, 10);
             if ((*optarg == '\0') || (*strtolPtr != '\0') ||
@@ -74,7 +74,7 @@ main(int argc, char **argv)
         }
 
         case 'd': // Duration in seconds to run.
-        { 
+        {
             char *strtolPtr;
             duration = strtoul(optarg, &strtolPtr, 10);
             if ((*optarg == '\0') || (*strtolPtr != '\0') ||
@@ -216,7 +216,7 @@ main(int argc, char **argv)
 
     while (1) {
         keyIdx.clear();
-            
+
         // Begin a transaction.
         client->Begin();
         gettimeofday(&t1, NULL);
@@ -231,12 +231,12 @@ main(int argc, char **argv)
             keyIdx.push_back(rand_key());
             keyIdx.push_back(rand_key());
             sort(keyIdx.begin(), keyIdx.end());
-            
+
             if ((ret = client->Get(keys[keyIdx[0]], value))) {
                 Warning("Aborting due to %s %d", keys[keyIdx[0]].c_str(), ret);
                 status = false;
             }
-            
+
             for (int i = 0; i < 3 && status; i++) {
                 client->Put(keys[keyIdx[i]], keys[keyIdx[i]]);
             }
@@ -298,7 +298,7 @@ main(int argc, char **argv)
             Debug("Aborting transaction due to failed Read");
         }
         gettimeofday(&t2, NULL);
-        
+
         long latency = (t2.tv_sec - t1.tv_sec) * 1000000 + (t2.tv_usec - t1.tv_usec);
 
         int retries = 0;
@@ -310,7 +310,7 @@ main(int argc, char **argv)
                 t1.tv_usec, t2.tv_sec, t2.tv_usec, latency, status?1:0, ttype, retries);
         fprintf(stderr, "\n");
 
-        if (((t2.tv_sec-t0.tv_sec)*1000000 + (t2.tv_usec-t0.tv_usec)) > duration*1000000) 
+        if (((t2.tv_sec-t0.tv_sec)*1000000 + (t2.tv_usec-t0.tv_usec)) > duration*1000000)
             break;
     }
 
