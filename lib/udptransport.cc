@@ -49,6 +49,7 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <signal.h>
+#include <sstream>
 
 const size_t MAX_UDP_MESSAGE_SIZE = 9000; // XXX
 const int SOCKET_BUF_SIZE = 10485760;
@@ -468,6 +469,15 @@ UDPTransport::SendMessageInternal(TransportReceiver *src,
         }
     }
 
+    struct timeval ev_write_time;
+    gettimeofday(&ev_write_time, NULL);
+    std::ostringstream ts;
+    ts << ev_write_time.tv_sec << "." << ev_write_time.tv_usec;
+    ev_write_times.insert(
+        ev_write_times.end(),
+        std::make_pair(ts.str(), m.GetTypeName())
+    );
+
     return true;
 }
 
@@ -694,12 +704,12 @@ UDPTransport::CancelTimer(int id)
 
     event_del(info->ev);
     event_free(info->ev);
-    
+
     timers.erase(info->id);
 
 
     delete info;
-    
+
     return true;
 }
 

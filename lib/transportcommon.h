@@ -111,7 +111,6 @@ public:
             return true;
         }
     }
-
 protected:
     virtual bool SendMessageInternal(TransportReceiver *src,
                                      const ADDR &dst,

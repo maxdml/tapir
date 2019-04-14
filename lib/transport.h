@@ -35,6 +35,7 @@
 
 #include <google/protobuf/message.h>
 #include <functional>
+#include <map>
 
 #define CLIENT_NETWORK_DELAY 0
 #define REPLICA_NETWORK_DELAY 0
@@ -72,6 +73,7 @@ class Transport
 protected:
     typedef ::google::protobuf::Message Message;
 public:
+    std::map<string, string> ev_write_times;
     virtual ~Transport() {}
     virtual void Register(TransportReceiver *receiver,
                           const transport::Configuration &config,

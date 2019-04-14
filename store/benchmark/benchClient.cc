@@ -298,6 +298,7 @@ main(int argc, char **argv)
                 gettimeofday(&getStat.tstart, NULL);
                 client->Get(key, value);
                 gettimeofday(&getStat.tend, NULL);
+                //cerr << "#############" << value << "#############" << endl;
 
                 getStat.latency = (getStat.tend.tv_sec - getStat.tstart.tv_sec) * 1000000
                                   + (getStat.tend.tv_usec - getStat.tstart.tv_usec);
@@ -380,6 +381,16 @@ main(int argc, char **argv)
         cerr << tStats[i].tLatency << " ";
         cerr << tStats[i].status << endl;
     }
+
+    auto ev_writes =
+        ((tapirstore::ShardClient *) ((tapirstore::Client *) client)->bclient[0]->txnclient)->client->transport->ev_write_times;
+    ofstream ev_write_times_file;
+    ev_write_times_file.open("ev_write_times");
+    for (auto &e: ev_writes) {
+        ev_write_times_file << e.first << " ";
+        ev_write_times_file << e.second << endl;
+    }
+    ev_write_times_file.close();
 
     return 0;
 }

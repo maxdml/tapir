@@ -85,10 +85,10 @@ public:
     virtual void ReceiveMessage(const TransportAddress &remote,
                                 const string &type,
                                 const string &data);
+    Transport *transport;
 
 protected:
     transport::Configuration config;
-    Transport *transport;
 
     uint64_t clientid;
 };

@@ -46,6 +46,7 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <signal.h>
+#include <sstream>
 
 const size_t MAX_TCP_SIZE = 100; // XXX
 const uint32_t MAGIC = 0x06121983;
@@ -392,10 +393,18 @@ TCPTransport::SendMessageInternal(TransportReceiver *src,
     memcpy(ptr, data.c_str(), dataLen);
     ptr += dataLen;
 
+    struct timeval ev_write_time;
+    gettimeofday(&ev_write_time, NULL);
+    std::ostringstream ts;
+    ts << ev_write_time.tv_sec << "." << ev_write_time.tv_usec;
     if (bufferevent_write(ev, buf, totalLen) < 0) {
         Warning("Failed to write to TCP buffer");
         return false;
     }
+    ev_write_times.insert(
+        ev_write_times.end(),
+        std::make_pair(ts.str(), type)
+    );
 
     return true;
 }
