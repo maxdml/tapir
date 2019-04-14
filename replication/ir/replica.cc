@@ -145,7 +145,6 @@ IRReplica::HandleProposeInconsistent(const TransportAddress &remote,
 
     // Send the reply
     transport->SendMessage(this, remote, reply);
-
 }
 
 void

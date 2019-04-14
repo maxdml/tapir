@@ -363,8 +363,8 @@ IRClient::ResendConfirmation(const uint64_t reqId, bool isConsensus)
     }
 
     if (isConsensus) {
-	PendingConsensusRequest *req = static_cast<PendingConsensusRequest *>(pendingReqs[reqId]);
-	ASSERT(req != NULL);
+        PendingConsensusRequest *req = static_cast<PendingConsensusRequest *>(pendingReqs[reqId]);
+        ASSERT(req != NULL);
 
         proto::FinalizeConsensusMessage response;
         response.mutable_opid()->set_clientid(clientid);
@@ -380,19 +380,19 @@ IRClient::ResendConfirmation(const uint64_t reqId, bool isConsensus)
             delete req;
         }
     } else {
-	PendingInconsistentRequest *req = static_cast<PendingInconsistentRequest *>(pendingReqs[reqId]);
-	ASSERT(req != NULL);
+        PendingInconsistentRequest *req = static_cast<PendingInconsistentRequest *>(pendingReqs[reqId]);
+        ASSERT(req != NULL);
 
-	proto::FinalizeInconsistentMessage response;
+        proto::FinalizeInconsistentMessage response;
         response.mutable_opid()->set_clientid(clientid);
         response.mutable_opid()->set_clientreqid(req->clientReqId);
 
         if (transport->SendMessageToAll(this, response)) {
-	    req->timer->Reset();
-	} else {
+            req->timer->Reset();
+        } else {
             Warning("Could not send finalize message to replicas");
-	    pendingReqs.erase(reqId);
-	    delete req;
+            pendingReqs.erase(reqId);
+            delete req;
         }
 
     }

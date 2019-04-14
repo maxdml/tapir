@@ -425,7 +425,6 @@ UDPTransport::SendMessageInternal(TransportReceiver *src,
     std::unique_ptr<char[]> unique_buf;
     size_t msgLen = SerializeMessage(m, &unique_buf);
     char *buf = unique_buf.get();
-    //Notice("Sending message of type [%s] with content: %s", m.GetTypeName().c_str(), buf);
 
     int fd = fds[src];
 

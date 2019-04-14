@@ -196,20 +196,20 @@ ShardClient::TapirDecide(const std::map<std::string, std::size_t> &results)
         Reply reply;
         reply.ParseFromString(s);
 
-	if (reply.status() == REPLY_OK) {
-	    ok_count += count;
-	} else if (reply.status() == REPLY_FAIL) {
-	    return s;
-	} else if (reply.status() == REPLY_RETRY) {
-	    Timestamp t(reply.timestamp());
-	    if (t > ts) {
-		ts = t;
-	    }
-	}
+        if (reply.status() == REPLY_OK) {
+            ok_count += count;
+        } else if (reply.status() == REPLY_FAIL) {
+            return s;
+        } else if (reply.status() == REPLY_RETRY) {
+            Timestamp t(reply.timestamp());
+            if (t > ts) {
+                ts = t;
+            }
+        }
     }
 
     if (ok_count >= config->QuorumSize()) {
-	final_reply.set_status(REPLY_OK);
+	    final_reply.set_status(REPLY_OK);
     } else {
        final_reply.set_status(REPLY_RETRY);
        ts.serialize(final_reply.mutable_timestamp());

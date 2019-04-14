@@ -126,7 +126,7 @@ Store::Prepare(uint64_t id, const Transaction &txn, const Timestamp &timestamp, 
              */
             if (pWrites.find(read.first) != pWrites.end()) {
                 for (auto &writeTime : pWrites[read.first]) {
-                    if (writeTime > range.first && 
+                    if (writeTime > range.first &&
                         writeTime < timestamp) {
                         Debug("[%lu] ABSTAIN rw conflict w/ prepared key:%s",
                               id, read.first.c_str());
@@ -148,10 +148,10 @@ Store::Prepare(uint64_t id, const Transaction &txn, const Timestamp &timestamp, 
             // if the last committed write is bigger than the timestamp,
             // then can't accept in linearizable
             if ( linearizable && val.first > timestamp ) {
-                Debug("[%lu] RETRY ww conflict w/ prepared key:%s", 
+                Debug("[%lu] RETRY ww conflict w/ prepared key:%s",
                       id, write.first.c_str());
                 proposedTimestamp = val.first;
-                return REPLY_RETRY;	                    
+                return REPLY_RETRY;
             }
 
             // if last committed read is bigger than the timestamp, can't
@@ -168,7 +168,7 @@ Store::Prepare(uint64_t id, const Transaction &txn, const Timestamp &timestamp, 
 
             // if this key is in the store and has been read before
             if (ret && lastRead > timestamp) {
-                Debug("[%lu] RETRY wr conflict w/ prepared key:%s", 
+                Debug("[%lu] RETRY wr conflict w/ prepared key:%s",
                       id, write.first.c_str());
                 proposedTimestamp = lastRead;
                 return REPLY_RETRY; 
@@ -194,7 +194,7 @@ Store::Prepare(uint64_t id, const Transaction &txn, const Timestamp &timestamp, 
         //propsed timestamp, abstain
         if ( pReads.find(write.first) != pReads.end() &&
              pReads[write.first].upper_bound(timestamp) != pReads[write.first].end() ) {
-            Debug("[%lu] ABSTAIN wr conflict w/ prepared key:%s", 
+            Debug("[%lu] ABSTAIN wr conflict w/ prepared key:%s",
                   id, write.first.c_str());
             return REPLY_ABSTAIN;
         }
@@ -206,13 +206,13 @@ Store::Prepare(uint64_t id, const Transaction &txn, const Timestamp &timestamp, 
 
     return REPLY_OK;
 }
-    
+
 void
 Store::Commit(uint64_t id, uint64_t timestamp)
 {
 
     Debug("[%lu] COMMIT", id);
-    
+
     // Nope. might not find it
     //ASSERT(prepared.find(id) != prepared.end());
 
@@ -245,7 +245,7 @@ void
 Store::Abort(uint64_t id, const Transaction &txn)
 {
     Debug("[%lu] ABORT", id);
-    
+
     if (prepared.find(id) != prepared.end()) {
         prepared.erase(id);
     }
