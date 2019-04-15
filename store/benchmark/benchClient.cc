@@ -11,6 +11,7 @@
 #include "store/strongstore/client.h"
 #include "store/weakstore/client.h"
 #include "store/tapirstore/client.h"
+#include "store/benchmark/measureClient.h"
 
 #include <iostream>
 
@@ -29,8 +30,10 @@ struct opStat {
 struct txnStats {
     vector<struct opStat> getStats;
     vector<struct opStat> putStats;
+    vector<struct opStat> prepStats;
     struct opStat begin;
     struct opStat commit;
+    long commit_retries;
     double tLatency; // latency for the entire transaction
     bool status;
 };
@@ -221,13 +224,13 @@ main(int argc, char **argv)
     }
 
     if (mode == MODE_TAPIR) {
-        client = new tapirstore::Client(configPath, nShards,
+        client = new MeasureClient<tapirstore::Client>(tLen, configPath, nShards,
                     closestReplica, TrueTime(skew, error));
     } else if (mode == MODE_WEAK) {
-        client = new weakstore::Client(configPath, nShards,
+        client = new MeasureClient<weakstore::Client>(tLen, configPath, nShards,
                     closestReplica);
     } else if (mode == MODE_STRONG) {
-        client = new strongstore::Client(strongmode, configPath,
+        client = new MeasureClient<strongstore::Client>(tLen, strongmode, configPath,
                     nShards, closestReplica, TrueTime(skew, error));
     } else {
         fprintf(stderr, "option -m is required\n");
@@ -249,144 +252,42 @@ main(int argc, char **argv)
     in.close();
 
     cerr << "# benchClient_params: " << duration << "s, tLen=" << tLen << ", wPer=" << wPer << endl;
-    vector<struct txnStats> tStats;
-    int tCount = 0; // successful txns count
-    double tLatency = 0.0; //successful latencies
-    int beginCount = 0;
-    double beginLatency = 0.0;
-    int getCount = 0;
-    double getLatency = 0.0;
-    int putCount = 0;
-    double putLatency = 0.0;
-    int commitCount = 0;
-    double commitLatency = 0.0;
+
+    /*
+    ufor (int j=0; j < nKeys; j++) {
+        client->Begin();
+        //printf("Putting %d\n", j);
+        key = keys[j];
+        string key2 = key;
+        client->Put(key, key2);
+        //printf("Committing\n");
+        client->Commit();
+    };
+    */
 
     struct timeval t0, t1;
     gettimeofday(&t0, NULL);
     srand(t0.tv_sec + t0.tv_usec);
 
     while (1) {
-        struct txnStats tStat;
-        tStat.getStats.reserve(tLen);
-        tStat.putStats.reserve(tLen);
-
-        gettimeofday(&tStat.begin.tstart, NULL);
         client->Begin();
-        gettimeofday(&tStat.begin.tend, NULL);
-
-        tStat.begin.latency = (tStat.begin.tend.tv_sec - tStat.begin.tstart.tv_sec) * 1000000
-                              + (tStat.begin.tend.tv_usec - tStat.begin.tstart.tv_usec);
-        beginLatency = tStat.begin.latency;
-        beginCount++;
-
         for (int j = 0; j < tLen; j++) {
             key = keys[rand_key()];
 
             if (rand() % 100 < wPer) {
-                struct opStat putStat;
-                gettimeofday(&putStat.tstart, NULL);
                 client->Put(key, key);
-                gettimeofday(&putStat.tend, NULL);
-
-                putStat.latency = (putStat.tend.tv_sec - putStat.tstart.tv_sec) * 1000000
-                                  + (putStat.tend.tv_usec - putStat.tstart.tv_usec);
-                tStat.putStats.push_back(putStat);
-                putLatency += putStat.latency;
-                putCount++;
             } else {
-                struct opStat getStat;
-                gettimeofday(&getStat.tstart, NULL);
                 client->Get(key, value);
-                gettimeofday(&getStat.tend, NULL);
-                //cerr << "#############" << value << "#############" << endl;
-
-                getStat.latency = (getStat.tend.tv_sec - getStat.tstart.tv_sec) * 1000000
-                                  + (getStat.tend.tv_usec - getStat.tstart.tv_usec);
-                tStat.getStats.push_back(getStat);
-                getLatency += getStat.latency;
-                getCount++;
             }
         }
-
-        gettimeofday(&tStat.commit.tstart, NULL);
-        tStat.status = client->Commit();
-        gettimeofday(&tStat.commit.tend, NULL);
-
-        tStat.commit.latency = (tStat.commit.tend.tv_sec - tStat.commit.tstart.tv_sec) * 1000000
-                               + (tStat.commit.tend.tv_usec - tStat.commit.tstart.tv_usec);
-        commitLatency += tStat.commit.latency;
-        commitCount++;
-        tStat.tLatency = (tStat.commit.tend.tv_sec - tStat.begin.tend.tv_sec) * 1000000
-                         + (tStat.commit.tend.tv_usec - tStat.begin.tend.tv_usec);
-
-        tStats.push_back(tStat);
-
-        if (tStat.status) {
-            tCount++;
-            tLatency += tStat.tLatency;
-        }
+        client->Commit();
 
         gettimeofday(&t1, NULL);
         if (((t1.tv_sec-t0.tv_sec)*1000000 + (t1.tv_usec-t0.tv_usec)) > duration*1000000) {
             break;
         }
     }
-
-    /** Transaction summary */
-    fprintf(stderr, "# Commit_Ratio: %lf\n", (double)tCount/tStats.size());
-    fprintf(stderr, "# Average_Latency: %lf\n", tLatency/tCount);
-    fprintf(stderr, "# Begin: %d, %lf\n", beginCount, beginLatency/beginCount);
-    fprintf(stderr, "# Get: %d, %lf\n", getCount, getLatency/getCount);
-    fprintf(stderr, "# Put: %d, %lf\n", putCount, putLatency/putCount);
-    fprintf(stderr, "# Commit: %d, %lf\n", commitCount, commitLatency/commitCount);
-
-    replication::ir::IRClient *irclient =
-            ((tapirstore::ShardClient *) ((tapirstore::Client *) client)->bclient[0]->txnclient)->client;
-    fprintf(stderr, "# Fast path: %d\n", irclient->fast_path_taken);
-    fprintf(stderr, "# Slow path: %d\n", irclient->slow_path_taken);
-    fprintf(stderr, "# Get timeouts: %d\n", irclient->unlogged_timeouts);
-    fprintf(stderr, "# Prepare timeouts: %d\n", irclient->consensus_timeouts);
-    fprintf(stderr, "# PrepareFinalize timeouts: %d\n", irclient->finalize_consensus_timeouts);
-    fprintf(stderr, "# Commit timeouts: %d\n", irclient->inconsistent_timeouts);
-    fprintf(stderr, "# CommitFinalize timeouts: %d\n", irclient->finalize_inconsistent_timeouts);
-
-    /** Log transactions statistics */
-    for (unsigned int i = 0; i < tStats.size(); ++i) {
-        /** Begin stats */
-        cerr << i+1 << " begin ";
-        cerr << tStats[i].begin.tstart.tv_sec << "." << tStats[i].begin.tstart.tv_usec << " ";
-        cerr << tStats[i].begin.tend.tv_sec << "." << tStats[i].begin.tend.tv_usec << " ";
-        cerr << tStats[i].begin.latency << " ";
-        cerr << tStats[i].status << endl;
-        /** Put stats (if present) */
-        for (unsigned int j = 0; j < tStats[i].putStats.size(); ++j) {
-            cerr << i+1 << " put ";
-            cerr << tStats[i].putStats[j].tstart.tv_sec << "." << tStats[i].putStats[j].tstart.tv_usec << " ";
-            cerr << tStats[i].putStats[j].tend.tv_sec << "." << tStats[i].putStats[j].tend.tv_usec << " ";
-            cerr << tStats[i].putStats[j].latency << " ";
-            cerr << tStats[i].status << endl;
-        }
-        /** Get stats (if present) */
-        for (unsigned int j = 0; j < tStats[i].getStats.size(); ++j) {
-            cerr << i+1 << " get ";
-            cerr << tStats[i].getStats[j].tstart.tv_sec << "." << tStats[i].getStats[j].tstart.tv_usec << " ";
-            cerr << tStats[i].getStats[j].tend.tv_sec << "." << tStats[i].getStats[j].tend.tv_usec << " ";
-            cerr << tStats[i].getStats[j].latency << " ";
-            cerr << tStats[i].status << endl;
-        }
-        /** Commit stats */
-        cerr << i+1 << " commit ";
-        cerr << tStats[i].commit.tstart.tv_sec << "." << tStats[i].commit.tstart.tv_usec << " ";
-        cerr << tStats[i].commit.tend.tv_sec << "." << tStats[i].commit.tend.tv_usec << " ";
-        cerr << tStats[i].commit.latency << " ";
-        cerr << tStats[i].status << endl;
-        /** Overall stats */
-        cerr << i+1 << " total ";
-        cerr << tStats[i].begin.tend.tv_sec << "." << tStats[i].begin.tend.tv_usec << " ";
-        cerr << tStats[i].commit.tend.tv_sec << "." << tStats[i].commit.tend.tv_usec << " ";
-        cerr << tStats[i].tLatency << " ";
-        cerr << tStats[i].status << endl;
-    }
+    delete client;
 
     auto ev_writes =
         ((tapirstore::ShardClient *) ((tapirstore::Client *) client)->bclient[0]->txnclient)->client->transport->ev_write_times;

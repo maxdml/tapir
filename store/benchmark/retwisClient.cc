@@ -11,6 +11,7 @@
 #include "store/strongstore/client.h"
 #include "store/weakstore/client.h"
 #include "store/tapirstore/client.h"
+#include "store/benchmark/measureClient.h"
 #include <algorithm>
 
 using namespace std;
@@ -171,19 +172,19 @@ main(int argc, char **argv)
         }
 
         default:
-            fprintf(stderr, "Unknown argument %s\n", argv[optind]);
+            fprintf(stdout, "Unknown argument %s\n", argv[optind]);
             break;
         }
     }
 
     if (mode == MODE_TAPIR) {
-        client = new tapirstore::Client(configPath, nShards,
+        client = new MeasureClient<tapirstore::Client>(10, configPath, nShards,
                     closestReplica, TrueTime(skew, error));
     } else if (mode == MODE_WEAK) {
-        client = new weakstore::Client(configPath, nShards,
+        client = new MeasureClient<weakstore::Client>(10, configPath, nShards,
                     closestReplica);
     } else if (mode == MODE_STRONG) {
-        client = new strongstore::Client(strongmode, configPath,
+        client = new MeasureClient<strongstore::Client>(10, strongmode, configPath,
                     nShards, closestReplica, TrueTime(skew, error));
     } else {
         fprintf(stderr, "option -m is required\n");
@@ -306,13 +307,16 @@ main(int argc, char **argv)
             retries = client->Stats()[0];
         }
 
-        fprintf(stderr, "%d %ld.%06ld %ld.%06ld %ld %d %d %d", ++nTransactions, t1.tv_sec,
-                t1.tv_usec, t2.tv_sec, t2.tv_usec, latency, status?1:0, ttype, retries);
-        fprintf(stderr, "\n");
+        //fprintf(stderr, "%d %ld.%06ld %ld.%06ld %ld %d %d %d", ++nTransactions, t1.tv_sec,
+        //        t1.tv_usec, t2.tv_sec, t2.tv_usec, latency, status?1:0, ttype, retries);
+        //fprintf(stderr, "\n");
 
         if (((t2.tv_sec-t0.tv_sec)*1000000 + (t2.tv_usec-t0.tv_usec)) > duration*1000000)
             break;
     }
+
+    delete client;
+
 
     fprintf(stderr, "# Client exiting..\n");
     return 0;
