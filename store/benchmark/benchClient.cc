@@ -339,10 +339,16 @@ main(int argc, char **argv)
     fprintf(stderr, "# Get: %d, %lf\n", getCount, getLatency/getCount);
     fprintf(stderr, "# Put: %d, %lf\n", putCount, putLatency/putCount);
     fprintf(stderr, "# Commit: %d, %lf\n", commitCount, commitLatency/commitCount);
-    fprintf(stderr, "# Fast path: %d\n",
-            ((tapirstore::ShardClient *) ((tapirstore::Client *) client)->bclient[0]->txnclient)->client->fast_path_taken);
-    fprintf(stderr, "# Slow path: %d\n",
-            ((tapirstore::ShardClient *) ((tapirstore::Client *) client)->bclient[0]->txnclient)->client->slow_path_taken);
+
+    replication::ir::IRClient *irclient =
+            ((tapirstore::ShardClient *) ((tapirstore::Client *) client)->bclient[0]->txnclient)->client;
+    fprintf(stderr, "# Fast path: %d\n", irclient->fast_path_taken);
+    fprintf(stderr, "# Slow path: %d\n", irclient->slow_path_taken);
+    fprintf(stderr, "# Get timeouts: %d\n", irclient->unlogged_timeouts);
+    fprintf(stderr, "# Prepare timeouts: %d\n", irclient->consensus_timeouts);
+    fprintf(stderr, "# PrepareFinalize timeouts: %d\n", irclient->finalize_consensus_timeouts);
+    fprintf(stderr, "# Commit timeouts: %d\n", irclient->inconsistent_timeouts);
+    fprintf(stderr, "# CommitFinalize timeouts: %d\n", irclient->finalize_inconsistent_timeouts);
 
     /** Log transactions statistics */
     for (unsigned int i = 0; i < tStats.size(); ++i) {

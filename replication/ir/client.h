@@ -84,6 +84,11 @@ public:
 
     int slow_path_taken = 0;
     int fast_path_taken = 0;
+    int unlogged_timeouts = 0;
+    int inconsistent_timeouts = 0;
+    int consensus_timeouts = 0;
+    int finalize_inconsistent_timeouts = 0;
+    int finalize_consensus_timeouts = 0;
 
 protected:
     struct PendingRequest {

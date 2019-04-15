@@ -198,6 +198,7 @@ void
 IRClient::ResendInconsistent(const uint64_t reqId)
 {
 
+    inconsistent_timeouts++;
     Warning("Client timeout; resending inconsistent request: %lu", reqId);
     SendInconsistent((PendingInconsistentRequest *)pendingReqs[reqId]);
 }
@@ -206,6 +207,7 @@ void
 IRClient::ResendConsensus(const uint64_t reqId)
 {
 
+    consensus_timeouts++;
     Warning("Client timeout; resending consensus request: %lu", reqId);
     SendConsensus((PendingConsensusRequest *)pendingReqs[reqId]);
 }
@@ -363,6 +365,8 @@ IRClient::ResendConfirmation(const uint64_t reqId, bool isConsensus)
     }
 
     if (isConsensus) {
+        finalize_consensus_timeouts++;
+
         PendingConsensusRequest *req = static_cast<PendingConsensusRequest *>(pendingReqs[reqId]);
         ASSERT(req != NULL);
 
@@ -371,7 +375,7 @@ IRClient::ResendConfirmation(const uint64_t reqId, bool isConsensus)
         response.mutable_opid()->set_clientreqid(req->clientReqId);
         response.set_result(req->decideResult);
 
-        if(transport->SendMessageToAll(this, response)) {
+        if (transport->SendMessageToAll(this, response)) {
             req->timer->Reset();
         } else {
             Warning("Could not send finalize message to replicas");
@@ -380,6 +384,7 @@ IRClient::ResendConfirmation(const uint64_t reqId, bool isConsensus)
             delete req;
         }
     } else {
+        finalize_inconsistent_timeouts++;
         PendingInconsistentRequest *req = static_cast<PendingInconsistentRequest *>(pendingReqs[reqId]);
         ASSERT(req != NULL);
 
@@ -608,6 +613,8 @@ IRClient::UnloggedRequestTimeoutCallback(const uint64_t reqId)
         Debug("Received timeout when no request was pending");
         return;
     }
+
+    unlogged_timeouts++;
 
     PendingUnloggedRequest *req = static_cast<PendingUnloggedRequest *>(it->second);
     ASSERT(req != NULL);
