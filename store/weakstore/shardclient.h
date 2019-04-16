@@ -16,8 +16,6 @@
 #include "store/common/frontend/txnclient.h"
 #include "store/weakstore/weak-proto.pb.h"
 
-#define COMMIT_RETRIES 5
-
 namespace weakstore {
 
 class ShardClient : public TransportReceiver
