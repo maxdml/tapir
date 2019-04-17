@@ -30,6 +30,7 @@
  **********************************************************************/
 
 #include "store/tapirstore/client.h"
+#include <pthread.h>
 
 namespace tapirstore {
 
@@ -66,6 +67,18 @@ Client::Client(const string configPath, int nShards,
     /* Run the transport in a new thread. */
     clientTransport = new thread(&Client::run_client, this);
 
+    // Setting CPUs in use for non-libevent part of client
+    cpu_set_t cpuset;
+    pthread_t thread = pthread_self();
+
+    /* Set affinity mask to include only CPU 1 */
+    CPU_ZERO(&cpuset);
+    CPU_SET(1, &cpuset);
+
+    int rtn  = pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
+    if (rtn != 0)
+        perror(" pthread_setaffinity_np");
+
     Debug("Tapir client [%lu] created! %lu", client_id, bclient.size());
 }
 
@@ -82,6 +95,17 @@ Client::~Client()
 void
 Client::run_client()
 {
+    // Setting CPU in use for libevent part of client
+    cpu_set_t cpuset;
+    pthread_t thread = pthread_self();
+
+    /* Set affinity mask to include CPU 3 */
+    CPU_ZERO(&cpuset);
+    CPU_SET(3, &cpuset);
+
+    int rtn  = pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
+    if (rtn != 0)
+        perror(" pthread_setaffinity_np");
     transport.Run();
 }
 
