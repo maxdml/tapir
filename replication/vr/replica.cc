@@ -48,7 +48,7 @@ namespace replication {
 namespace vr {
 
 using namespace proto;
-    
+
 VRReplica::VRReplica(transport::Configuration config, int myIdx,
                      Transport *transport, unsigned int batchSize,
                      AppReplica *app)
@@ -71,21 +71,21 @@ VRReplica::VRReplica(transport::Configuration config, int myIdx,
         Notice("Batching enabled; batch size %d", batchSize);
     }
 
-    this->viewChangeTimeout = new Timeout(transport, 5000, [this]() {
+    this->viewChangeTimeout = new Timeout(transport, 1, [this]() {
             StartViewChange(view+1);
         });
-    this->nullCommitTimeout = new Timeout(transport, 1000, [this]() {
+    this->nullCommitTimeout = new Timeout(transport, 1, [this]() {
             SendNullCommit();
         });
-    this->stateTransferTimeout = new Timeout(transport, 1000, [this]() {
+    this->stateTransferTimeout = new Timeout(transport, 1, [this]() {
             this->lastRequestStateTransferView = 0;
-            this->lastRequestStateTransferOpnum = 0;            
+            this->lastRequestStateTransferOpnum = 0;
         });
     this->stateTransferTimeout->Start();
-    this->resendPrepareTimeout = new Timeout(transport, 500, [this]() {
+    this->resendPrepareTimeout = new Timeout(transport, 1, [this]() {
             ResendPrepare();
         });
-    this->closeBatchTimeout = new Timeout(transport, 300, [this]() {
+    this->closeBatchTimeout = new Timeout(transport, 1, [this]() {
             CloseBatch();
         });
 
@@ -93,7 +93,7 @@ VRReplica::VRReplica(transport::Configuration config, int myIdx,
         nullCommitTimeout->Start();
     } else {
         viewChangeTimeout->Start();
-    } 
+    }
 }
 
 VRReplica::~VRReplica()
@@ -103,7 +103,7 @@ VRReplica::~VRReplica()
     delete stateTransferTimeout;
     delete resendPrepareTimeout;
     delete closeBatchTimeout;
-    
+
     for (auto &kv : pendingPrepares) {
         delete kv.first;
     }
@@ -135,7 +135,7 @@ VRReplica::CommitUpTo(opnum_t upto)
         reply.set_view(entry->viewstamp.view);
         reply.set_opnum(entry->viewstamp.opnum);
         reply.set_clientreqid(entry->request.clientreqid());
-        
+
         /* Mark it as committed */
         log.SetStatus(lastCommitted, LOG_STATE_COMMITTED);
 
@@ -145,14 +145,14 @@ VRReplica::CommitUpTo(opnum_t upto)
         if (cte.lastReqId <= entry->request.clientreqid()) {
             cte.lastReqId = entry->request.clientreqid();
             cte.replied = true;
-            cte.reply = reply;            
+            cte.reply = reply;
         } else {
             // We've subsequently prepared another operation from the
             // same client. So this request must have been completed
             // at the client, and there's no need to record the
             // result.
         }
-        
+
         /* Send reply */
         auto iter = clientAddresses.find(entry->request.clientid());
         if (iter != clientAddresses.end()) {
@@ -185,7 +185,7 @@ VRReplica::SendPrepareOKs(opnum_t oldLastOp)
 
         RDebug("Sending PREPAREOK " FMT_VIEWSTAMP " for new uncommitted operation",
                reply.view(), reply.opnum());
-    
+
         if (!(transport->SendMessageToReplica(this,
                                               configuration.GetLeaderIndex(view),
                                               reply))) {
@@ -208,7 +208,7 @@ VRReplica::RequestStateTransfer()
                " because we already requested it", view, lastCommitted);
         return;
     }
-    
+
     RNotice("Requesting state transfer: " FMT_VIEWSTAMP, view, lastCommitted);
 
     this->lastRequestStateTransferView = view;
@@ -316,7 +316,7 @@ VRReplica::CloseBatch()
     ASSERT(lastBatchEnd < lastOp);
 
     opnum_t batchStart = lastBatchEnd+1;
-    
+
     RDebug("Sending batched prepare from " FMT_OPNUM
            " to " FMT_OPNUM,
            batchStart, lastOp);
@@ -340,7 +340,7 @@ VRReplica::CloseBatch()
         RWarning("Failed to send prepare message to all replicas");
     }
     lastBatchEnd = lastOp;
-    
+
     resendPrepareTimeout->Reset();
     closeBatchTimeout->Stop();
 }
@@ -359,7 +359,7 @@ VRReplica::ReceiveMessage(const TransportAddress &remote,
     StartViewChangeMessage startViewChange;
     DoViewChangeMessage doViewChange;
     StartViewMessage startView;
-    
+
     if (type == request.GetTypeName()) {
         request.ParseFromString(data);
         HandleRequest(remote, request);
@@ -401,7 +401,7 @@ VRReplica::HandleRequest(const TransportAddress &remote,
                          const RequestMessage &msg)
 {
     viewstamp_t v;
-    
+
     if (status != STATUS_NORMAL) {
         RNotice("Ignoring request due to abnormal status");
         return;
@@ -409,7 +409,7 @@ VRReplica::HandleRequest(const TransportAddress &remote,
 
     if (!AmLeader()) {
         RDebug("Ignoring request because I'm not the leader");
-        return;        
+        return;
     }
 
     // Save the client's address
@@ -473,7 +473,7 @@ VRReplica::HandleRequest(const TransportAddress &remote,
         request.set_op(res);
         request.set_clientid(msg.req().clientid());
         request.set_clientreqid(msg.req().clientreqid());
-    
+
         /* Assign it an opnum */
         ++this->lastOp;
         v.view = this->view;
@@ -509,7 +509,7 @@ VRReplica::HandleUnloggedRequest(const TransportAddress &remote,
     }
 
     UnloggedReplyMessage reply;
-    
+
     Debug("Received unlogged request %s", (char *)msg.req().op().c_str());
 
     ExecuteUnlogged(msg.req(), reply);
@@ -530,7 +530,7 @@ VRReplica::HandlePrepare(const TransportAddress &remote,
         RDebug("Ignoring PREPARE due to abnormal status");
         return;
     }
-    
+
     if (msg.view() < this->view) {
         RDebug("Ignoring PREPARE due to stale view");
         return;
@@ -548,9 +548,9 @@ VRReplica::HandlePrepare(const TransportAddress &remote,
 
     ASSERT(msg.batchstart() <= msg.opnum());
     ASSERT_EQ(msg.opnum()-msg.batchstart()+1, (unsigned int)msg.request_size());
-              
+
     viewChangeTimeout->Reset();
-    
+
     if (msg.opnum() <= this->lastOp) {
         RDebug("Ignoring PREPARE; already prepared that operation");
         // Resend the prepareOK message
@@ -571,7 +571,7 @@ VRReplica::HandlePrepare(const TransportAddress &remote,
         pendingPrepares.push_back(std::pair<TransportAddress *, PrepareMessage>(remote.clone(), msg));
         return;
     }
-    
+
     /* Add operations to the log */
     opnum_t op = msg.batchstart()-1;
     for (auto &req : msg.request()) {
@@ -585,13 +585,13 @@ VRReplica::HandlePrepare(const TransportAddress &remote,
         UpdateClientTable(req);
     }
     ASSERT(op == msg.opnum());
-    
+
     /* Build reply and send it to the leader */
     PrepareOKMessage reply;
     reply.set_view(msg.view());
     reply.set_opnum(msg.opnum());
     reply.set_replicaidx(myIdx);
-    
+
     if (!(transport->SendMessageToReplica(this,
                                           configuration.GetLeaderIndex(view),
                                           reply))) {
@@ -625,9 +625,9 @@ VRReplica::HandlePrepareOK(const TransportAddress &remote,
 
     if (!AmLeader()) {
         RWarning("Ignoring PREPAREOK because I'm not the leader");
-        return;        
+        return;
     }
-    
+
     viewstamp_t vs = { msg.view(), msg.opnum() };
     if (auto msgs =
         (prepareOKQuorum.AddAndCheckForQuorum(vs, msg.replicaidx(), msg))) {
@@ -645,7 +645,7 @@ VRReplica::HandlePrepareOK(const TransportAddress &remote,
         if (msgs->size() >= (unsigned int)configuration.QuorumSize()) {
             return;
         }
-        
+
         /*
          * Send COMMIT message to the other replicas.
          *
@@ -674,7 +674,7 @@ VRReplica::HandleCommit(const TransportAddress &remote,
         RDebug("Ignoring COMMIT due to abnormal status");
         return;
     }
-    
+
     if (msg.view() < this->view) {
         RDebug("Ignoring COMMIT due to stale view");
         return;
@@ -690,7 +690,7 @@ VRReplica::HandleCommit(const TransportAddress &remote,
     }
 
     viewChangeTimeout->Reset();
-    
+
     if (msg.opnum() <= this->lastCommitted) {
         RDebug("Ignoring COMMIT; already committed that operation");
         return;
@@ -708,7 +708,7 @@ VRReplica::HandleCommit(const TransportAddress &remote,
 void
 VRReplica::HandleRequestStateTransfer(const TransportAddress &remote,
                                       const RequestStateTransferMessage &msg)
-{    
+{
     RDebug("Received REQUESTSTATETRANSFER " FMT_VIEWSTAMP,
            msg.view(), msg.opnum());
 
@@ -729,7 +729,7 @@ VRReplica::HandleRequestStateTransfer(const TransportAddress &remote,
     StateTransferMessage reply;
     reply.set_view(view);
     reply.set_opnum(lastCommitted);
-    
+
     log.Dump(msg.opnum()+1, reply.mutable_entries());
 
     transport->SendMessage(this, remote, reply);
@@ -740,14 +740,14 @@ VRReplica::HandleStateTransfer(const TransportAddress &remote,
                                const StateTransferMessage &msg)
 {
     RDebug("Received STATETRANSFER " FMT_VIEWSTAMP, msg.view(), msg.opnum());
-    
+
     if (msg.view() < view) {
         RWarning("Ignoring state transfer for older view");
         return;
     }
-    
+
     opnum_t oldLastOp = lastOp;
-    
+
     /* Install the new log entries */
     for (auto newEntry : msg.entries()) {
         if (newEntry.opnum() <= lastCommitted) {
@@ -764,12 +764,12 @@ VRReplica::HandleStateTransfer(const TransportAddress &remote,
             const LogEntry *entry = log.Find(newEntry.opnum());
             ASSERT(entry->viewstamp.opnum == newEntry.opnum());
             ASSERT(entry->viewstamp.view <= newEntry.view());
-            
+
             if (entry->viewstamp.view == newEntry.view()) {
                 // We already have this operation in our log.
                 ASSERT(entry->state == LOG_STATE_PREPARED);
 #if PARANOID
-//              ASSERT(entry->request == newEntry.request());                
+//              ASSERT(entry->request == newEntry.request());
 #endif
             } else {
                 // Our operation was from an older view, so obviously
@@ -786,13 +786,13 @@ VRReplica::HandleStateTransfer(const TransportAddress &remote,
         } else {
             // This is a new operation to us. Add it to the log.
             ASSERT(newEntry.opnum() == lastOp+1);
-            
+
             lastOp++;
             viewstamp_t vs = { newEntry.view(), newEntry.opnum() };
             log.Append(vs, newEntry.request(), LOG_STATE_PREPARED);
         }
     }
-    
+
 
     if (msg.view() > view) {
         EnterView(msg.view());

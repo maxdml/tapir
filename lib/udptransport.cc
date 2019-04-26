@@ -47,6 +47,8 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
 #include <netdb.h>
 #include <signal.h>
 #include <sstream>
@@ -138,15 +140,20 @@ UDPTransport::LookupMulticastAddress(const transport::Configuration
 }
 
 static void
-BindToPort(int fd, const string &host, const string &port)
+BindToPort(int fd, const string &host, const string &port, bool isMulticast)
 {
     struct sockaddr_in sin;
 
     if ((host == "") && (port == "any")) {
-        // Set up the sockaddr so we're OK with any UDP socket
+        // Set up the sockaddr so we're OK with any UDP socket (port?)
         memset(&sin, 0, sizeof(sin));
         sin.sin_family = AF_INET;
         sin.sin_port = 0;
+    } else if (isMulticast) {
+        memset(&sin, 0, sizeof(sin));
+        sin.sin_family= AF_INET;
+        sin.sin_addr.s_addr = htonl(INADDR_ANY);
+        sin.sin_port = htons(atoi(port.c_str()));
     } else {
         // Otherwise, look up its hostname and port number (which
         // might be a service name)
@@ -175,7 +182,7 @@ BindToPort(int fd, const string &host, const string &port)
     Debug("Binding to %s:%d", inet_ntoa(sin.sin_addr), htons(sin.sin_port));
 
     if (bind(fd, (sockaddr *)&sin, sizeof(sin)) < 0) {
-        PPanic("Failed to bind to socket");
+        PPanic("Failed to bind to socket %s:%s", host.c_str(), port.c_str());
     }
 }
 
@@ -271,11 +278,32 @@ UDPTransport::ListenOnMulticastPort(const transport::Configuration
         PWarning("Failed to set SO_SNDBUF on socket");
     }
 
-
     // Bind to the specified address
     BindToPort(fd,
                canonicalConfig->multicast()->host,
-               canonicalConfig->multicast()->port);
+               canonicalConfig->multicast()->port,
+               true);
+
+    // Join the multicast group
+	struct ifreq ifr;
+	ifr.ifr_addr.sa_family = AF_INET;
+	strncpy(ifr.ifr_name, canonicalConfig->multicast()->nic.c_str(), IFNAMSIZ-1);
+	ioctl(fd, SIOCGIFADDR, &ifr);
+
+	struct ip_mreq group;
+	group.imr_multiaddr.s_addr =
+		inet_addr(canonicalConfig->multicast()->host.c_str());
+	group.imr_interface.s_addr =
+		((struct sockaddr_in *) &ifr.ifr_addr)->sin_addr.s_addr;
+
+	if (setsockopt(fd, IPPROTO_IP,
+				   IP_ADD_MEMBERSHIP,
+				   (char *) &group, sizeof(group)) < 0) {
+		PWarning("Could not join mcast group: %s\n", strerror(errno));
+	}
+	Notice("Joining multicast group on %s via local address %s\n",
+			canonicalConfig->multicast()->host.c_str(),
+            inet_ntoa(group.imr_interface));
 
     // Set up a libevent callback
     event *ev = event_new(libeventBase, fd,
@@ -346,10 +374,10 @@ UDPTransport::Register(TransportReceiver *receiver,
         // host/port
         const string &host = config.replica(replicaIdx).host;
         const string &port = config.replica(replicaIdx).port;
-        BindToPort(fd, host, port);
+        BindToPort(fd, host, port, false);
     } else {
         // Registering a client. Bind to any available host/port
-        BindToPort(fd, "", "any");
+        BindToPort(fd, "", "any", false);
     }
 
     // Set up a libevent callback
@@ -378,6 +406,31 @@ UDPTransport::Register(TransportReceiver *receiver,
     // Don't do this if we're registering a client.
     if (replicaIdx != -1) {
         ListenOnMulticastPort(canonicalConfig);
+    } else {
+        if (canonicalConfig->multicast()) {
+            int retval;
+            struct ifreq ifr;
+            ifr.ifr_addr.sa_family = AF_INET;
+            strncpy(ifr.ifr_name,
+                    canonicalConfig->multicast()->nic.c_str(),
+                    IFNAMSIZ-1);
+            retval = ioctl(fd, SIOCGIFADDR, &ifr);
+            if (retval < 0) {
+                Notice("Could not retrieve interface address: %s",
+                       strerror(errno));
+            }
+
+            struct in_addr *local_nic =
+                &((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr;
+            retval = setsockopt(fd, IPPROTO_IP, IP_MULTICAST_IF,
+                                (char *)local_nic, sizeof(struct in_addr));
+            if (retval < 0) {
+                Notice(
+                 "Could not set interface for outgoing multicast traffic: %s",
+                 strerror(errno)
+                );
+            }
+        }
     }
 }
 
@@ -432,8 +485,8 @@ UDPTransport::SendMessageInternal(TransportReceiver *src,
     // available for writing, which since it's a UDP socket it ought
     // to be.
     if (msgLen <= MAX_UDP_MESSAGE_SIZE) {
-        if (sendto(fd, buf, msgLen, 0,
-                   (sockaddr *)&sin, sizeof(sin)) < 0) {
+        int sentlen = sendto(fd, buf, msgLen, 0, (sockaddr *)&sin, sizeof(sin));
+        if (sentlen < 0) {
             PWarning("Failed to send message");
             return false;
         }

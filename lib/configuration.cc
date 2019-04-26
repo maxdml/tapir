@@ -39,6 +39,12 @@
 
 namespace transport {
 
+ReplicaAddress::ReplicaAddress(const string &host, const string &port, const string &nic)
+    : host(host), port(port), nic(nic)
+{
+
+}
+
 ReplicaAddress::ReplicaAddress(const string &host, const string &port)
     : host(host), port(port)
 {
@@ -48,7 +54,8 @@ ReplicaAddress::ReplicaAddress(const string &host, const string &port)
 bool
 ReplicaAddress::operator==(const ReplicaAddress &other) const {
     return ((host == other.host) &&
-            (port == other.port));
+            (port == other.port) &&
+            (nic  == other.nic));
 }
 
 bool
@@ -136,13 +143,19 @@ Configuration::Configuration(std::ifstream &file)
 
             unsigned int t3 = line.find_first_of(":", t2);
             if (t3 == string::npos) {
-                Panic("Configuration line format: 'replica host:port'");
+                Panic("Configuration line format: 'replica host:port nic'");
+            }
+
+            unsigned int t4 = line.find_first_of(" \t", t3);
+            if (t4 == string::npos) {
+                Panic("Configuration line format: 'replica host:port nic'");
             }
 
             string host = line.substr(t2, t3-t2);
-            string port = line.substr(t3+1, string::npos);
+            string port = line.substr(t3+1, t4-1-t3);
+            string nic = line.substr(t4+1, string::npos);
 
-            multicastAddress = new ReplicaAddress(host, port);
+            multicastAddress = new ReplicaAddress(host, port, nic);
             hasMulticast = true;
         } else {
             Panic("Unknown configuration directive: %s", cmd.c_str());

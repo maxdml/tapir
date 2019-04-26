@@ -47,7 +47,9 @@ struct ReplicaAddress
 {
     string host;
     string port;
+    string nic;
     ReplicaAddress(const string &host, const string &port);
+    ReplicaAddress(const string &host, const string &port, const string &nic);
     bool operator==(const ReplicaAddress &other) const;
     inline bool operator!=(const ReplicaAddress &other) const {
         return !(*this == other);
