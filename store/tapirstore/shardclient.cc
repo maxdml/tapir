@@ -95,7 +95,7 @@ ShardClient::Get(uint64_t id, const string &key, Promise *promise)
     request.SerializeToString(&request_str);
 
     // set to 1 second by default
-    int timeout = (promise != NULL) ? promise->GetTimeout() : 1000;
+    int timeout = (promise != NULL) ? promise->GetTimeout() : 1;
 
     transport->Timer(0, [=]() {
 	    waiting = promise;
@@ -128,7 +128,7 @@ ShardClient::Get(uint64_t id, const string &key,
     request.SerializeToString(&request_str);
 
     // set to 1 second by default
-    int timeout = (promise != NULL) ? promise->GetTimeout() : 1000;
+    int timeout = (promise != NULL) ? promise->GetTimeout() : 1;
 
     transport->Timer(0, [=]() {
 	    waiting = promise;
