@@ -40,7 +40,7 @@ ShardClient::ShardClient(Mode mode, const string &configPath,
                        Transport *transport, uint64_t client_id, int
                        shard, int closestReplica)
     : transport(transport), client_id(client_id), shard(shard)
-{ 
+{
     ifstream configStream(configPath);
     if (configStream.fail()) {
         fprintf(stderr, "unable to read configuration file: %s\n",
@@ -66,7 +66,7 @@ ShardClient::ShardClient(Mode mode, const string &configPath,
 }
 
 ShardClient::~ShardClient()
-{ 
+{
     delete client;
 }
 
@@ -103,7 +103,7 @@ ShardClient::Get(uint64_t id, const string &key, Promise *promise)
     int timeout = (promise != NULL) ? promise->GetTimeout() : 1000;
 
     transport->Timer(0, [=]() {
-	    waiting = promise;    
+	    waiting = promise;
         client->InvokeUnlogged(replica,
                                request_str,
                                bind(&ShardClient::GetCallback,

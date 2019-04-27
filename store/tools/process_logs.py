@@ -4,7 +4,7 @@ import sys
 
 start, end = -1.0, -1.0
 
-duration = float(sys.argv[2])
+duration = float(sys.argv[2]) * 1e6
 warmup = duration/3.0
 
 tLatency = []
@@ -71,7 +71,7 @@ fLatency.sort()
 
 print "Transactions(All/Success): ", len(tLatency), len(sLatency)
 print "Abort Rate: ", (float)(len(tLatency)-len(sLatency))/len(tLatency)
-print "Throughput (All/Success): ", len(tLatency)/(end-start), len(sLatency)/(end-start)
+print "Throughput (All/Success): ", len(tLatency)/(end-start)*1e6, len(sLatency)/(end-start)*1e6
 print "Average Latency (all): ", sum(tLatency)/float(len(tLatency))
 print "Median  Latency (all): ", tLatency[len(tLatency)/2]
 print "99%tile Latency (all): ", tLatency[(len(tLatency) * 99)/100]

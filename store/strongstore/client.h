@@ -62,6 +62,9 @@ public:
     void Abort();
     std::vector<int> Stats();
 
+    // Buffering client for each shard.
+    std::vector<BufferClient *> bclient;
+
 private:
     /* Private helper functions. */
     void run_client(); // Runs the transport event loop.
@@ -86,12 +89,9 @@ private:
 
     // Transport used by paxos client proxies.
     UDPTransport transport;
-    
+
     // Thread running the transport event loop.
     std::thread *clientTransport;
-
-    // Buffering client for each shard.
-    std::vector<BufferClient *> bclient;
 
     // Mode in which spanstore runs.
     Mode mode;

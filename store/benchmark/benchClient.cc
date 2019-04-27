@@ -226,9 +226,9 @@ main(int argc, char **argv)
     if (mode == MODE_TAPIR) {
         client = new MeasureClient<tapirstore::Client>(tLen, configPath, nShards,
                     closestReplica, TrueTime(skew, error));
-    } else if (mode == MODE_WEAK) {
-        client = new MeasureClient<weakstore::Client>(tLen, configPath, nShards,
-                    closestReplica);
+//    } else if (mode == MODE_WEAK) {
+//        client = new MeasureClient<weakstore::Client>(tLen, configPath, nShards,
+ //                   closestReplica);
     } else if (mode == MODE_STRONG) {
         client = new MeasureClient<strongstore::Client>(tLen, strongmode, configPath,
                     nShards, closestReplica, TrueTime(skew, error));
@@ -288,16 +288,6 @@ main(int argc, char **argv)
         }
     }
     delete client;
-
-    auto ev_writes =
-        ((tapirstore::ShardClient *) ((tapirstore::Client *) client)->bclient[0]->txnclient)->client->transport->ev_write_times;
-    ofstream ev_write_times_file;
-    ev_write_times_file.open("ev_write_times");
-    for (auto &e: ev_writes) {
-        ev_write_times_file << e.first << " ";
-        ev_write_times_file << e.second << endl;
-    }
-    ev_write_times_file.close();
 
     return 0;
 }

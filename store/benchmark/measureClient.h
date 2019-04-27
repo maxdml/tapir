@@ -1,7 +1,7 @@
 #ifndef _BENCHMARK_MEASURE_CLIENT_H_
 #define _BENCHMARK_MEASURE_CLIENT_H_
 #include <iostream>
-#include <sstream> 
+#include <sstream>
 
 struct OpStat {
     struct timeval tstart;
@@ -19,7 +19,6 @@ struct TxnStat {
     double total_latency; // latency for the entire transaction
     bool status;
 };
-
 
 template <class ClientT>
 class MeasureClient : public ::Client {
@@ -103,6 +102,8 @@ public:
     }
 
     void summarize(std::ostream &out) {
+        replication::ir::IRClient *irclient =
+            ((tapirstore::ShardClient *) base_client.bclient[0]->txnclient)->client;
         out << std::unitbuf;
         out << "# Commit_Ratio: " << (double)n_success / stats.size() \
             << std::endl \
@@ -115,6 +116,20 @@ public:
             << "# Put: " << put_count << ", " << put_latency / put_count \
             << std::endl \
             << "# Commit: " << commit_count << ", " << commit_latency / commit_count \
+            << std::endl \
+            << "# Fast path: " << irclient->fast_path_taken \
+            << std::endl \
+            << "# Slow path: " << irclient->slow_path_taken \
+            << std::endl \
+            << "# Get timeouts: " << irclient->unlogged_timeouts \
+            << std::endl \
+            << "# Prepare timeouts: " << irclient->consensus_timeouts \
+            << std::endl \
+            << "# PrepareFinalize timeouts: " << irclient->finalize_consensus_timeouts \
+            << std::endl \
+            << "# Commit timeouts: " << irclient->inconsistent_timeouts \
+            << std::endl \
+            << "# CommitFinalize timeouts: " << irclient->finalize_inconsistent_timeouts \
             << std::endl << std::flush;
     }
 
@@ -135,8 +150,8 @@ public:
             output_stat(out, stat.commit, stat.status, "commit", i+1);
 
             out << i + 1 << " total " \
-                << stat.begin.tstart.tv_sec << "." << stat.begin.tstart.tv_usec << " " \
-                << stat.commit.tend.tv_sec << "." << stat.commit.tend.tv_usec << " " \
+                << stat.begin.tstart.tv_sec * 1000000 + stat.begin.tstart.tv_usec << " " \
+                << stat.commit.tend.tv_sec * 1000000 + stat.commit.tend.tv_usec << " " \
                 << stat.total_latency << " " << stat.status << std::endl << std::flush;
         }
     }
@@ -173,11 +188,11 @@ private:
                (end.tv_usec - start.tv_usec);
     }
 
-    void output_stat(std::ostream &out, OpStat &stat, bool status, 
+    void output_stat(std::ostream &out, OpStat &stat, bool status,
                      const std::string &label, int idx) {
         out << idx << " " << label << " " \
-            << stat.tstart.tv_sec << "." << stat.tstart.tv_usec << " " \
-            << stat.tend.tv_sec << "." << stat.tend.tv_usec << " " \
+            << stat.tstart.tv_sec * 1000000 + stat.tstart.tv_usec << " " \
+            << stat.tend.tv_sec * 1000000 + stat.tend.tv_usec << " " \
             << stat.latency << " " << status << std::endl << std::flush;
     }
 };

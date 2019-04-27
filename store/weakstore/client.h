@@ -62,6 +62,9 @@ public:
     void Abort() {};
     std::vector<int> Stats();
 
+    // Client for each shard.
+    std::vector<ShardClient *> bclient;
+
 private:
     /* Private helper functions. */
     void run_client(); // Runs the transport event loop.
@@ -74,12 +77,9 @@ private:
 
     // Transport used by shard clients.
     UDPTransport transport;
-    
+
     // Thread running the transport event loop.
     std::thread *clientTransport;
-
-    // Client for each shard.
-    std::vector<ShardClient *> bclient;
 };
 
 } // namespace weakstore
