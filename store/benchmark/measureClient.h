@@ -2,10 +2,12 @@
 #define _BENCHMARK_MEASURE_CLIENT_H_
 #include <iostream>
 #include <sstream> 
+#include <sys/times.h>
+#include <iomanip>
 
 struct OpStat {
-    struct timeval tstart;
-    struct timeval tend;
+    struct timespec tstart;
+    struct timespec tend;
     long latency;
 };
 
@@ -20,19 +22,24 @@ struct TxnStat {
     bool status;
 };
 
+#define GETTIME_CLOCK CLOCK_THREAD_CPUTIME_ID
+
 
 template <class ClientT>
 class MeasureClient : public ::Client {
 public:
     template <class... Types>
-    MeasureClient(int txn_len, Types&& ... args) : base_client(args...), txn_len(txn_len) {}
+    MeasureClient(int txn_len, Types&& ... args) : txn_len(txn_len) {
+        base_client = new ClientT(args...);
+        stats.reserve(30000);
+    }
 
     ~MeasureClient() {
         summarize(std::cerr);
         output_stats(std::cerr);
     }
 
-    ClientT base_client;
+    ClientT *base_client;
 
     void set_txn_len(int txn_len) {
         this->txn_len = txn_len;
@@ -40,13 +47,13 @@ public:
 
     void Begin() {
         curr_stat = &stats.emplace_back();
-        curr_stat->getStats.reserve(txn_len);
-        curr_stat->putStats.reserve(txn_len);
 
         OpStat &op = curr_stat->begin;
-        gettimeofday(&op.tstart, NULL);
-        base_client.Begin();
-        gettimeofday(&op.tend, NULL);
+        set_timespec(op.tstart);
+        curr_stat->getStats.reserve(txn_len);
+        curr_stat->putStats.reserve(txn_len);
+        base_client->Begin();
+        set_timespec(op.tend);
         store_latency(op);
         begin_count++;
         begin_latency += op.latency;
@@ -54,9 +61,9 @@ public:
 
     int Get(const std::string &key, std::string &value) {
         OpStat &op = curr_stat->getStats.emplace_back();
-        gettimeofday(&op.tstart, NULL);
-        int rtn = base_client.Get(key, value);
-        gettimeofday(&op.tend, NULL);
+        set_timespec(op.tstart);
+        int rtn = base_client->Get(key, value);
+        set_timespec(op.tend);
         store_latency(op);
         get_latency += op.latency;
         get_count++;
@@ -70,9 +77,9 @@ public:
 
     int Put(const std::string &key, const std::string &value) {
         OpStat &op = curr_stat->putStats.emplace_back();
-        gettimeofday(&op.tstart, NULL);
-        int rtn = base_client.Put(key, value);
-        gettimeofday(&op.tend, NULL);
+        set_timespec(op.tstart);
+        int rtn = base_client->Put(key, value);
+        set_timespec(op.tend);
         store_latency(op);
         put_latency += op.latency;
         put_count++;
@@ -81,9 +88,9 @@ public:
 
     bool Commit() {
         OpStat &op = curr_stat->commit;
-        gettimeofday(&op.tstart, NULL);
-        bool status = base_client.Commit();
-        gettimeofday(&op.tend, NULL);
+        set_timespec(op.tstart);
+        bool status = base_client->Commit();
+        set_timespec(op.tend);
         store_latency(op);
         curr_stat->status = status;
 
@@ -99,7 +106,7 @@ public:
         return status;
     }
     void Abort() {
-        base_client.Abort();
+        base_client->Abort();
     }
 
     void summarize(std::ostream &out) {
@@ -116,6 +123,19 @@ public:
             << std::endl \
             << "# Commit: " << commit_count << ", " << commit_latency / commit_count \
             << std::endl << std::flush;
+
+        replication::ir::IRClient *irclient =
+                ((tapirstore::ShardClient *) ((tapirstore::Client *) base_client)->bclient[0]->txnclient)->client;
+        fprintf(stderr, "# Fast path: %d\n", irclient->fast_path_taken);
+        fprintf(stderr, "# Slow path: %d\n", irclient->slow_path_taken);
+        fprintf(stderr, "# Get timeouts: %d\n", irclient->unlogged_timeouts);
+        fprintf(stderr, "# Prepare timeouts: %d\n", irclient->consensus_timeouts);
+        fprintf(stderr, "# PrepareFinalize timeouts: %d\n", irclient->finalize_consensus_timeouts);
+        fprintf(stderr, "# Commit timeouts: %d\n", irclient->inconsistent_timeouts);
+        fprintf(stderr, "# CommitFinalize timeouts: %d\n", irclient->finalize_inconsistent_timeouts);
+
+
+
     }
 
     void output_stats(std::ostream &out) {
@@ -135,8 +155,8 @@ public:
             output_stat(out, stat.commit, stat.status, "commit", i+1);
 
             out << i + 1 << " total " \
-                << stat.begin.tstart.tv_sec << "." << stat.begin.tstart.tv_usec << " " \
-                << stat.commit.tend.tv_sec << "." << stat.commit.tend.tv_usec << " " \
+                << stat.begin.tstart.tv_sec << "." << stat.begin.tstart.tv_nsec << " " \
+                << stat.commit.tend.tv_sec << "." << stat.commit.tend.tv_nsec << " " \
                 << stat.total_latency << " " << stat.status << std::endl << std::flush;
         }
     }
@@ -164,22 +184,27 @@ private:
     std::vector<TxnStat> stats;
     TxnStat *curr_stat;
 
-    void store_latency(OpStat &stat) {
+    constexpr void store_latency(OpStat &stat) {
         stat.latency = calc_duration(stat.tstart, stat.tend);
     }
 
-    double calc_duration(struct timeval &start, struct timeval &end) {
-        return (end.tv_sec - start.tv_sec) * 1000000 + \
-               (end.tv_usec - start.tv_usec);
+    constexpr double calc_duration(struct timespec &start, struct timespec &end) {
+        return (long int)(end.tv_sec - start.tv_sec) * 1000000000 + \
+               (end.tv_nsec - start.tv_nsec);
     }
 
     void output_stat(std::ostream &out, OpStat &stat, bool status, 
                      const std::string &label, int idx) {
         out << idx << " " << label << " " \
-            << stat.tstart.tv_sec << "." << stat.tstart.tv_usec << " " \
-            << stat.tend.tv_sec << "." << stat.tend.tv_usec << " " \
+            << stat.tstart.tv_sec << "." << std::setfill('0') << std::setw(9) << stat.tstart.tv_nsec << " " \
+            << stat.tend.tv_sec << "." << std::setfill('0') << std::setw(9) << stat.tend.tv_nsec << " " \
             << stat.latency << " " << status << std::endl << std::flush;
     }
-};
+    void set_timespec(struct timespec &spec) {
+        clock_gettime(CLOCK_MONOTONIC_RAW, &spec);
+    }
+}
+
+;
 
 #endif
