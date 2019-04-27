@@ -24,14 +24,17 @@ template <class ClientT>
 class MeasureClient : public ::Client {
 public:
     template <class... Types>
-    MeasureClient(int txn_len, Types&& ... args) : base_client(args...), txn_len(txn_len) {}
+    MeasureClient(int txn_len, Types&& ... args) : txn_len(txn_len) {
+        base_client = new ClientT(args...);
+        stats.reserve(40000);
+    }
 
     ~MeasureClient() {
         summarize(std::cerr);
         output_stats(std::cerr);
     }
 
-    ClientT base_client;
+    ClientT *base_client;
 
     void set_txn_len(int txn_len) {
         this->txn_len = txn_len;
@@ -44,7 +47,7 @@ public:
 
         OpStat &op = curr_stat->begin;
         gettimeofday(&op.tstart, NULL);
-        base_client.Begin();
+        base_client->Begin();
         gettimeofday(&op.tend, NULL);
         store_latency(op);
         begin_count++;
@@ -54,7 +57,7 @@ public:
     int Get(const std::string &key, std::string &value) {
         OpStat &op = curr_stat->getStats.emplace_back();
         gettimeofday(&op.tstart, NULL);
-        int rtn = base_client.Get(key, value);
+        int rtn = base_client->Get(key, value);
         gettimeofday(&op.tend, NULL);
         store_latency(op);
         get_latency += op.latency;
@@ -70,7 +73,7 @@ public:
     int Put(const std::string &key, const std::string &value) {
         OpStat &op = curr_stat->putStats.emplace_back();
         gettimeofday(&op.tstart, NULL);
-        int rtn = base_client.Put(key, value);
+        int rtn = base_client->Put(key, value);
         gettimeofday(&op.tend, NULL);
         store_latency(op);
         put_latency += op.latency;
@@ -81,7 +84,7 @@ public:
     bool Commit() {
         OpStat &op = curr_stat->commit;
         gettimeofday(&op.tstart, NULL);
-        bool status = base_client.Commit();
+        bool status = base_client->Commit();
         gettimeofday(&op.tend, NULL);
         store_latency(op);
         curr_stat->status = status;
@@ -98,12 +101,12 @@ public:
         return status;
     }
     void Abort() {
-        base_client.Abort();
+        base_client->Abort();
     }
 
     void summarize(std::ostream &out) {
         replication::ir::IRClient *irclient =
-            ((tapirstore::ShardClient *) base_client.bclient[0]->txnclient)->client;
+            ((tapirstore::ShardClient *) ((tapirstore::Client *) base_client)->bclient[0]->txnclient)->client;
         out << std::unitbuf;
         out << "# Commit_Ratio: " << (double)n_success / stats.size() \
             << std::endl \
@@ -161,7 +164,6 @@ public:
         return x;
     }
 
-
 private:
     int txn_len;
     int n_success;
@@ -179,11 +181,11 @@ private:
     std::vector<TxnStat> stats;
     TxnStat *curr_stat;
 
-    void store_latency(OpStat &stat) {
+    constexpr void store_latency(OpStat &stat) {
         stat.latency = calc_duration(stat.tstart, stat.tend);
     }
 
-    double calc_duration(struct timeval &start, struct timeval &end) {
+    constexpr double calc_duration(struct timeval &start, struct timeval &end) {
         return (end.tv_sec - start.tv_sec) * 1000000 + \
                (end.tv_usec - start.tv_usec);
     }
