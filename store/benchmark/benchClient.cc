@@ -254,7 +254,7 @@ main(int argc, char **argv)
     cerr << "# benchClient_params: " << duration << "s, tLen=" << tLen << ", wPer=" << wPer << endl;
 
     /*
-    ufor (int j=0; j < nKeys; j++) {
+    for (int j=0; j < nKeys; j++) {
         client->Begin();
         //printf("Putting %d\n", j);
         key = keys[j];
@@ -287,6 +287,7 @@ main(int argc, char **argv)
             break;
         }
     }
+
     delete client;
 
     return 0;
