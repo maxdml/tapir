@@ -8,11 +8,13 @@ trap '{
     ssh $host "killall -9 $client";
   done
 
-  echo "\nKilling all replics.. Please wait..";
-  for host in ${servers[@]}
+  echo "\nKilling all replicas.. Please wait..";
+  for host in ${replicas[@]}
   do
     ssh $host "killall -9 server";
   done
+
+  exit 0
 }' INT
 
 # Paths to source code and logfiles.
@@ -32,7 +34,7 @@ mode="txn-l"            # Mode for storage system.
 nshard=1     # number of shards
 nclient=1    # number of clients to run (per machine)
 nkeys=100000 # number of keys to use
-rtime=10     # duration to run
+rtime=10    # duration to run
 
 tlen=2       # transaction length
 wper=0       # writes percentage

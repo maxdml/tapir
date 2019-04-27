@@ -10,14 +10,11 @@ if [ "$#" -ne 4 ]; then
   exit 1
 fi
 
-n=$(head -n1 $config | awk '{print $2}')
-let n=2*$n+1
-
-for ((i=0; i<$n; i++))
+i=0
+for n in `cat $config | grep replica | awk '{print $2}'`
 do
-  let line=$i+2 
-  server=$(cat $config | sed -n ${line}p | awk -F'[ :]' '{print $2}')
-  command="ssh $server \"$cmd -c $config -i $i > $logdir/$shard.replica$i.log 2>&1 &\""
-  #echo $command
+  server=$(echo $n | cut -d':' -f1)
+  command="ssh -p 2324 -i /home/maxdml/.ssh/nostromo $server \"$cmd -c $config -i $i > $logdir/$shard.replica$i.log 2>&1 &\""
   eval $command
+  let i=$i+1
 done
