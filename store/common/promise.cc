@@ -36,7 +36,7 @@ Promise::Promise()
 {
     done = false;
     reply = 0;
-    timeout = 1000;
+    timeout = 1;
 }
 
 Promise::Promise(int timeoutMS)
