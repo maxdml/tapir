@@ -272,7 +272,9 @@ TCPTransport::Register(TransportReceiver *receiver,
 
     // Clients don't need to accept TCP connections
     if (replicaIdx == -1) {
-	return;
+        TCPTransportAddress *addr = new TCPTransportAddress(sin);
+        receiver->SetAddress(addr);
+        return;
     }
 
     // Create socket
