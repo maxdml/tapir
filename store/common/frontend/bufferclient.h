@@ -53,7 +53,7 @@ public:
     void Put(const string &key, const string &value, Promise *promise = NULL);
 
     // Prepare (Spanner requires a prepare timestamp)
-    void Prepare(const Timestamp &timestamp = Timestamp(), Promise *promise = NULL); 
+    void Prepare(const Timestamp &timestamp = Timestamp(), Promise *promise = NULL);
 
     // Commit the ongoing transaction.
     void Commit(uint64_t timestamp = 0, Promise *promise = NULL);

@@ -61,7 +61,6 @@ public:
     virtual void ReceiveMessage(const TransportAddress &remote,
                                 const string &type, const string &data) = 0;
 
-
 protected:
     const TransportAddress *myAddress;
 };

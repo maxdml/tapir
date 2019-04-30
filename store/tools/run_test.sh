@@ -11,15 +11,16 @@ trap '{
   echo "\nKilling all replicas.. Please wait..";
   for host in ${replicas[@]}
   do
-    ssh $host "killall -9 server";
+      ssh -p 2324 -i /home/maxdml/.ssh/nostromo $host "killall -9 server; rm \"~/*bin\"";
   done
 
   exit 0
 }' INT
 
 # Paths to source code and logfiles.
-srcdir="/homes/sys/naveenks/Research/Tapir"
-logdir="/biggerraid/users/naveenks/tapir"
+srcdir="/home/maxdml/nfs/maxdml/codeZ/tapir/"
+logdir="/home/maxdml/nfs/maxdml/codeZ/tapir/logs/"
+logfile=$1
 
 # Machines on which replicas are running.
 replicas=("breakout" "pitfall" "qbert")
@@ -114,7 +115,10 @@ done
 
 # Process logs
 echo "Processing logs"
-cat $logdir/client.*.log | sort -g -k 3 > $logdir/client.log
+for i in ${!clients[@]}
+do
+    cat $logdir/client.$i.log | sort -g -k 3 > $logdir/$logfile.$i
+    python $srcdir/store/tools/process_logs.py $logdir/$logfile.$i $rtime
+done
 rm -f $logdir/client.*.log
 
-python $srcdir/store/tools/process_logs.py $logdir/client.log $rtime

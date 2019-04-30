@@ -27,7 +27,7 @@ TrueTime::TrueTime(uint64_t skew, uint64_t errorBound)
     }
 
     Debug("TrueTime variance: skew=%lu error=%lu", simSkew, simError);
-}    
+}
 
 uint64_t
 TrueTime::GetTime()
