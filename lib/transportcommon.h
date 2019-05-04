@@ -37,6 +37,8 @@
 #include "lib/configuration.h"
 #include "lib/transport.h"
 
+#include <arpa/inet.h>
+
 #include <map>
 #include <unordered_map>
 

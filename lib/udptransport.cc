@@ -586,7 +586,8 @@ UDPTransport::OnReadable(int fd)
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 break;
             } else {
-                PWarning("Failed to receive message from socket");
+                PWarning("Failed to receive message from socket: %s",
+                         strerror(errno));
             }
         }
 

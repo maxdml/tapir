@@ -115,15 +115,19 @@ private:
     int dscp;
 
     event_base *libeventBase;
-    std::vector<event *> listenerEvents;
     std::vector<event *> signalEvents;
     std::map<int, TransportReceiver*> receivers; // fd -> receiver
     std::map<TransportReceiver*, int> fds; // receiver -> fd
     int lastTimerId;
     std::map<int, TCPTransportTimerInfo *> timers;
     std::list<TCPTransportTCPListener *> tcpListeners;
-    std::map<TCPTransportAddress, struct bufferevent *> tcpOutgoing;
-    std::map<struct bufferevent *, TCPTransportAddress> tcpAddresses;
+    //std::map<TCPTransportAddress, struct bufferevent *> tcpOutgoing;
+    //std::map<struct bufferevent *, TCPTransportAddress> tcpAddresses;
+    std::map<int, TCPTransportAddress> tcpAddresses;
+    std::map<TCPTransportAddress, int> tcpOutgoing;
+
+    std::map<TCPTransportAddress, string> fragInfo;
+
 
     bool SendMessageInternal(TransportReceiver *src,
                              const TCPTransportAddress &dst,
@@ -147,14 +151,16 @@ private:
                                short what, void *arg);
     static void TCPAcceptCallback(evutil_socket_t fd, short what,
                                   void *arg);
-    static void TCPReadableCallback(struct bufferevent *bev,
+    static void TCPReadableCallback(evutil_socket_t fd, short what,
                                     void *arg);
+    /*
     static void TCPEventCallback(struct bufferevent *bev,
                                  short what, void *arg);
     static void TCPIncomingEventCallback(struct bufferevent *bev,
                                          short what, void *arg);
     static void TCPOutgoingEventCallback(struct bufferevent *bev,
                                          short what, void *arg);
+    */
 };
 
 #endif  // _LIB_TCPTRANSPORT_H_

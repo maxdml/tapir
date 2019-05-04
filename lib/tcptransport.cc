@@ -48,8 +48,9 @@
 #include <signal.h>
 #include <sstream>
 
-const size_t MAX_TCP_SIZE = 100; // XXX
-const uint32_t MAGIC = 0x06121983;
+//const size_t MAX_TCP_SIZE = 100; // XXX
+//const uint32_t MAGIC = 0x06121983;
+const int READ_BUF_SIZE = 65536;
 
 using std::pair;
 
@@ -226,6 +227,19 @@ TCPTransport::ConnectTCP(TransportReceiver *src, const TCPTransportAddress &dst)
 
     tcpListeners.push_back(info);
 
+    int retval = connect(fd, (struct sockaddr *) &dst.addr, sizeof(dst.addr));
+    if (retval == -1) {
+        Warning("Failed to connect to server via TCP: %s\n", strerror(errno));
+        return;
+    }
+
+    event *ev = event_new(info->transport->libeventBase,
+                          fd, EV_READ, TCPReadableCallback, info);
+    event_add(ev, NULL);
+    tcpAddresses.insert(pair<int, TCPTransportAddress>(fd,dst));
+    tcpOutgoing[dst] = fd;
+
+    /*
     struct bufferevent *bev =
         bufferevent_socket_new(libeventBase, fd,
                                BEV_OPT_CLOSE_ON_FREE);
@@ -235,13 +249,14 @@ TCPTransport::ConnectTCP(TransportReceiver *src, const TCPTransportAddress &dst)
     if (bufferevent_socket_connect(bev,
                                    (struct sockaddr *)&(dst.addr),
                                    sizeof(dst.addr)) < 0) {
-	bufferevent_free(bev);
+	    bufferevent_free(bev);
         Warning("Failed to connect to server via TCP");
         return;
     }
     if (bufferevent_enable(bev, EV_READ|EV_WRITE) < 0) {
         Panic("Failed to enable bufferevent");
     }
+    */
 
     // Tell the receiver its address
     struct sockaddr_in sin;
@@ -252,10 +267,12 @@ TCPTransport::ConnectTCP(TransportReceiver *src, const TCPTransportAddress &dst)
     TCPTransportAddress *addr = new TCPTransportAddress(sin);
     src->SetAddress(addr);
 
+    /*
     tcpOutgoing[dst] = bev;
     tcpAddresses.insert(pair<struct bufferevent*, TCPTransportAddress>(bev,dst));
+    */
 
-    Debug("Opened TCP connection to %s:%d",
+    Debug("Scheduled the opening of a TCP connection to %s:%d",
 	  inet_ntoa(dst.addr.sin_addr), htons(dst.addr.sin_port));
 }
 
@@ -289,7 +306,7 @@ TCPTransport::Register(TransportReceiver *receiver,
     }
 
     // Set SO_REUSEADDR
-    int n;
+    int n = 1;
     if (setsockopt(fd, SOL_SOCKET,
                    SO_REUSEADDR, (char *)&n, sizeof(n)) < 0) {
         PWarning("Failed to set SO_REUSEADDR on TCP listening socket");
@@ -346,6 +363,17 @@ TCPTransport::SendMessageInternal(TransportReceiver *src,
                                   const Message &m,
                                   bool multicast)
 {
+    // Double check if sender is not identical (c.f. single srcAddr issue)
+    // FIXME: this prevents sending to the same machine at all, regardless of the port
+    /*
+    const TCPTransportAddress &srcAddr = static_cast<const TCPTransportAddress &>(src->GetAddress());
+    if (srcAddr.addr.sin_addr.s_addr == dst.addr.sin_addr.s_addr) {
+        Notice("Attempted to send to myself");
+        return true;
+    }
+    */
+
+    /*
     auto kv = tcpOutgoing.find(dst);
     // See if we have a connection open
     if (kv == tcpOutgoing.end()) {
@@ -355,6 +383,7 @@ TCPTransport::SendMessageInternal(TransportReceiver *src,
 
     struct bufferevent *ev = kv->second;
     ASSERT(ev != NULL);
+    */
 
     // Serialize message
     string data = m.SerializeAsString();
@@ -363,8 +392,8 @@ TCPTransport::SendMessageInternal(TransportReceiver *src,
     size_t dataLen = data.length();
     size_t totalLen = (typeLen + sizeof(typeLen) +
                        dataLen + sizeof(dataLen) +
-                       sizeof(totalLen) +
-                       sizeof(uint32_t));
+                       sizeof(totalLen));
+                       // + sizeof(uint32_t));
 
     Debug("Sending %ld byte %s message to server over TCP",
           totalLen, type.c_str());
@@ -372,9 +401,11 @@ TCPTransport::SendMessageInternal(TransportReceiver *src,
     char buf[totalLen];
     char *ptr = buf;
 
+    /*
     *((uint32_t *) ptr) = MAGIC;
     ptr += sizeof(uint32_t);
     ASSERT((size_t)(ptr-buf) < totalLen);
+    */
 
     *((size_t *) ptr) = totalLen;
     ptr += sizeof(size_t);
@@ -387,10 +418,11 @@ TCPTransport::SendMessageInternal(TransportReceiver *src,
     ASSERT((size_t)(ptr+typeLen-buf) < totalLen);
     memcpy(ptr, type.c_str(), typeLen);
     ptr += typeLen;
+
     *((size_t *) ptr) = dataLen;
     ptr += sizeof(size_t);
-
     ASSERT((size_t)(ptr-buf) < totalLen);
+
     ASSERT((size_t)(ptr+dataLen-buf) == totalLen);
     memcpy(ptr, data.c_str(), dataLen);
     ptr += dataLen;
@@ -399,10 +431,39 @@ TCPTransport::SendMessageInternal(TransportReceiver *src,
     gettimeofday(&ev_write_time, NULL);
     std::ostringstream ts;
     ts << ev_write_time.tv_sec << "." << ev_write_time.tv_usec;
+    /*
     if (bufferevent_write(ev, buf, totalLen) < 0) {
         Warning("Failed to write to TCP buffer");
         return false;
     }
+    */
+
+    auto kv = tcpOutgoing.find(dst);
+    if (kv == tcpOutgoing.end()) {
+        ConnectTCP(src, dst);
+        kv = tcpOutgoing.find(dst);
+    }
+    int fd = kv->second;
+    ssize_t sentlen;
+    size_t totalSent = 0;
+    while (totalSent < totalLen) {
+        sentlen = send(fd, buf, totalLen, 0);
+        if (sentlen == -1) {
+            int error = errno;
+            switch (error) {
+#if EAGAIN != EWOULDBLOCK
+                case EWOULDBLOCK:
+#endif
+                case EAGAIN:
+                    continue;
+                default:
+                    Notice("Issue sending data!: %s", strerror(errno));
+                    break;
+            }
+        }
+        totalSent += sentlen;
+    }
+
     ev_write_times.insert(
         ev_write_times.end(),
         std::make_pair(ts.str(), type)
@@ -554,7 +615,7 @@ TCPTransport::TCPAcceptCallback(evutil_socket_t fd, short what, void *arg)
         int newfd;
         struct sockaddr_in sin;
         socklen_t sinLength = sizeof(sin);
-        struct bufferevent *bev;
+        //struct bufferevent *bev;
 
         // Accept a connection
         if ((newfd = accept(fd, (struct sockaddr *)&sin,
@@ -575,7 +636,15 @@ TCPTransport::TCPAcceptCallback(evutil_socket_t fd, short what, void *arg)
             PWarning("Failed to set TCP_NODELAY on TCP listening socket");
         }
 
+        event *ev = event_new(transport->libeventBase,
+                              newfd, EV_READ, TCPReadableCallback, info);
+        event_add(ev, NULL);
+        TCPTransportAddress client = TCPTransportAddress(sin);
+        transport->tcpAddresses.insert(pair<int, TCPTransportAddress>(newfd,client));
+        transport->tcpOutgoing[client] = newfd;
+
         // Create a buffered event
+        /*
         bev = bufferevent_socket_new(transport->libeventBase, newfd,
                                      BEV_OPT_CLOSE_ON_FREE);
         bufferevent_setcb(bev, TCPReadableCallback, NULL,
@@ -585,25 +654,143 @@ TCPTransport::TCPAcceptCallback(evutil_socket_t fd, short what, void *arg)
         }
 
         info->connectionEvents.push_back(bev);
-	TCPTransportAddress client = TCPTransportAddress(sin);
-	transport->tcpOutgoing[client] = bev;
-	transport->tcpAddresses.insert(pair<struct bufferevent*, TCPTransportAddress>(bev,client));
+        TCPTransportAddress client = TCPTransportAddress(sin);
+        transport->tcpOutgoing[client] = bev;
+        transport->tcpAddresses.insert(pair<struct bufferevent*, TCPTransportAddress>(bev,client));
+        */
         Debug("Opened incoming TCP connection from %s:%d",
                inet_ntoa(sin.sin_addr), htons(sin.sin_port));
     }
 }
 
-void
-TCPTransport::TCPReadableCallback(struct bufferevent *bev, void *arg)
+
+static void
+updateMsg(string &msg, char *ptr, size_t toComplete, size_t *unparsedBytes)
 {
+    size_t missingBytes = toComplete - msg.length();
+    size_t toParse = (*unparsedBytes >= missingBytes) ? missingBytes : *unparsedBytes;
+    msg.append(string(ptr, toParse));
+    ptr += toParse;
+    *unparsedBytes -= toParse;
+    ASSERT(unparsedBytes >= 0);
+}
+
+void
+TCPTransport::TCPReadableCallback(evutil_socket_t fd, short what, void *arg)
+{
+    if (!(what & EV_READ)) {
+        Warning("Readable callback invoked for non READ event?");
+        return;
+    }
+
     TCPTransportTCPListener *info = (TCPTransportTCPListener *)arg;
     TCPTransport *transport = info->transport;
+
+    while (1) {
+        ssize_t sz;
+        char buf[READ_BUF_SIZE];
+        char *ptr = buf;
+        size_t unparsedBytes = 0;
+        size_t toComplete, totalLen;
+        memset(buf, '\0', READ_BUF_SIZE);
+        sockaddr_in sender;
+        socklen_t senderSize = sizeof(sender);
+
+        sz = recvfrom(fd, buf, READ_BUF_SIZE, 0,
+                      (struct sockaddr *) &sender, &senderSize);
+        if (sz == -1) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                break;
+            } else {
+                PWarning("Failed to receive message from socket: %s",
+                         strerror(errno));
+            }
+        }
+        unparsedBytes = sz;
+        TCPTransportAddress senderAddr(sender);
+        string rawMsg = transport->fragInfo[senderAddr];
+        while (unparsedBytes > 0) {
+            // Need magic?
+            /*
+            toComplete = sizeof(uint32_t);
+            if (rawMsg.length() < toComplete) {
+                updateMsg(rawMsg, ptr, toComplete, &unparsedBytes);
+                if (unparsedBytes == 0) {
+                    break;
+                }
+            }
+            */
+            //Need total len?
+            toComplete = sizeof(size_t);
+            if (rawMsg.length() < toComplete) {
+                updateMsg(rawMsg, ptr, toComplete, &unparsedBytes);
+                if (unparsedBytes == 0) {
+                    //FIXME: or break to give a chance to libevent to schedule another fd?
+                    continue;
+                }
+            }
+            // Need type len?
+            toComplete += sizeof(size_t);
+            if (rawMsg.length() < toComplete) {
+                updateMsg(rawMsg, ptr, toComplete, &unparsedBytes);
+                if (unparsedBytes == 0) {
+                    continue;
+                }
+            }
+            size_t typeLenPos = sizeof(size_t);
+            size_t typeLen = (size_t) rawMsg.c_str()[typeLenPos];
+            toComplete += typeLen;
+            // Need type?
+            if (rawMsg.length() < toComplete) {
+                updateMsg(rawMsg, ptr, toComplete, &unparsedBytes);
+                if (unparsedBytes == 0) {
+                    continue;
+                }
+            }
+            toComplete += sizeof(size_t);
+            // Need data len?
+            if (rawMsg.length() < toComplete) {
+                updateMsg(rawMsg, ptr, toComplete, &unparsedBytes);
+                if (unparsedBytes == 0) {
+                    continue;
+                }
+            }
+            size_t dataLenPos = sizeof(size_t)*2+typeLen;
+            size_t dataLen = (size_t) rawMsg.c_str()[dataLenPos];
+            toComplete += dataLen;
+            // Get payload
+            if (rawMsg.length() < toComplete) {
+                updateMsg(rawMsg, ptr, toComplete, &unparsedBytes);
+            }
+            // If we get there, either we have the full payload, or part of it
+            totalLen = *((size_t *) rawMsg.c_str());
+            if (rawMsg.length() == totalLen) {
+                size_t dataPos = dataLenPos + sizeof(size_t);
+                string msg = string(rawMsg, dataPos, dataLen);
+                size_t typePos = typeLenPos + sizeof(size_t);
+                string msgType = string(rawMsg, typePos, typeLen);
+
+                if (unparsedBytes > 0) {
+                    //FIXME: we need to store that somewhere
+                    Warning("There were unparsed bytes on a TCP connection");
+                }
+
+                rawMsg.clear();
+
+                auto addr = transport->tcpAddresses.find(fd);
+                ASSERT(addr != transport->tcpAddresses.end());
+                info->receiver->ReceiveMessage(addr->second, msg, msgType);
+            }
+        }
+    }
+
+    /*
     struct evbuffer *evbuf = bufferevent_get_input(bev);
 
     Debug("Readable on bufferevent %p", bev);
 
     while (evbuffer_get_length(evbuf) > 0) {
-        uint32_t *magic;
+        uint32_t magic;
         magic = (uint32_t *)evbuffer_pullup(evbuf, sizeof(*magic));
         if (magic == NULL) {
             return;
@@ -648,10 +835,11 @@ TCPTransport::TCPReadableCallback(struct bufferevent *bev, void *arg)
 
         ASSERT((size_t)(ptr+msgLen-buf) <= totalSize);
         string msg(ptr, msgLen);
-        ptr += msgLen;
+        ptr += msgLen; // why this?
 
         auto addr = transport->tcpAddresses.find(bev);
         ASSERT(addr != transport->tcpAddresses.end());
+
 
         // Dispatch
         if (dropRate > 0.0) {
@@ -690,8 +878,10 @@ TCPTransport::TCPReadableCallback(struct bufferevent *bev, void *arg)
         info->receiver->ReceiveMessage(addr->second, msgType, msg);
         Debug("Done processing large %s message", msgType.c_str());
     }
+    */
 }
 
+/*
 void
 TCPTransport::TCPIncomingEventCallback(struct bufferevent *bev,
                                        short what, void *arg)
@@ -737,3 +927,4 @@ TCPTransport::TCPOutgoingEventCallback(struct bufferevent *bev,
         return;
     }
 }
+*/
