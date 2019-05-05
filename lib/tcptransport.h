@@ -95,6 +95,7 @@ private:
         int acceptFd;
         int replicaIdx;
         event *acceptEvent;
+        event *readEvent;
         std::list<struct bufferevent *> connectionEvents;
     };
 
